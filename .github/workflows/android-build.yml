@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,6 +36,18 @@ jobs:
         with:
           name: MiniVerse-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Attach APK to 'latest' release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk MiniVerse-debug.apk
+          gh release delete latest --yes || true
+          git push --delete origin latest || true
+          gh release create latest MiniVerse-debug.apk \
+            --title "MiniVerse debug build (latest main)" \
+            --notes "Auto-built debug APK from commit ${GITHUB_SHA}. Enable 'install unknown apps' on your phone to install."
 
       - name: Upload test reports (always)
         if: always()
