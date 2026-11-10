@@ -56,3 +56,27 @@ fun MiniVerseTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composa
 
 /** Seat colours for up to 4 local players. */
 val SeatColors = listOf(MvPurple, MvCoral, MvSky, MvMint)
+
+// Extra candy colours for a kid-friendly look
+val MvOrange = Color(0xFFFFA14D)
+val MvPink = Color(0xFFFF8AC2)
+val MvLemon = Color(0xFFFFF3B0)
+
+/** Soft pastel backgrounds cycled across game cards. */
+val CardPastels = listOf(
+    Color(0xFFEFEAFD), // lavender
+    Color(0xFFFFE9E9), // blush
+    Color(0xFFE3F5FF), // baby blue
+    Color(0xFFE4FBF1), // mint cream
+    Color(0xFFFFF3DC), // peach
+    Color(0xFFFDE8FF), // lilac pink
+)
+
+/** Bold accent per category chip. */
+fun categoryColor(category: String): Color = when (category) {
+    "Board" -> MvSky
+    "Party" -> MvCoral
+    "Puzzle" -> MvMint
+    "Arcade" -> MvOrange
+    else -> MvPurple
+}

@@ -93,6 +93,10 @@ fun GameplayScreen(
             }
             is MemState -> MemoryBoard(state, vm)
             is ReactionState -> ReactionBoard(state, vm)
+            is com.devanshu.miniverse.games.snakes.SnlState -> SnakesBoard(state, vm)
+            is com.devanshu.miniverse.games.rps.RpsState -> RpsBoard(state, vm)
+            is com.devanshu.miniverse.games.quickmath.MathState -> QuickMathBoard(state, vm)
+            is com.devanshu.miniverse.games.whack.WhackState -> WhackBoard(state, vm)
         }
     }
 }

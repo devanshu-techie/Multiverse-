@@ -91,6 +91,10 @@ class GameplayViewModel(
     private fun scoresOf(state: Any, players: List<GamePlayer>): Map<String, Int> = when (state) {
         is MemState -> state.scores
         is ReactionState -> state.roundWins
+        is com.devanshu.miniverse.games.rps.RpsState -> state.roundWins
+        is com.devanshu.miniverse.games.quickmath.MathState -> state.scores
+        is com.devanshu.miniverse.games.whack.WhackState -> state.scores
+        is com.devanshu.miniverse.games.snakes.SnlState -> state.positions.mapValues { it.value }
         else -> players.associate { it.id to 0 }
     }
 

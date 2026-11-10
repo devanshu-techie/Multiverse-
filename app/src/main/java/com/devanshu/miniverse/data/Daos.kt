@@ -16,6 +16,9 @@ interface PlayerDao {
 
     @Query("SELECT * FROM player LIMIT 1")
     suspend fun first(): PlayerEntity?
+
+    @Query("UPDATE player SET name = :name, avatar = :avatar WHERE playerId = :playerId")
+    suspend fun updateProfile(playerId: String, name: String, avatar: String)
 }
 
 @Dao
@@ -59,4 +62,13 @@ interface MatchDao {
 
     @Query("SELECT * FROM `match` WHERE matchId = :matchId")
     suspend fun byId(matchId: String): MatchEntity?
+
+    @Query("SELECT COUNT(*) FROM match_player WHERE playerId = :playerId AND result = :result")
+    fun countResults(playerId: String, result: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM match_player WHERE playerId = :playerId AND result != 'PENDING'")
+    fun countPlayed(playerId: String): Flow<Int>
+
+    @Query("SELECT COUNT(DISTINCT gameId) FROM `match` WHERE status IN ('COMPLETED','DRAW')")
+    fun countDistinctGamesFinished(): Flow<Int>
 }

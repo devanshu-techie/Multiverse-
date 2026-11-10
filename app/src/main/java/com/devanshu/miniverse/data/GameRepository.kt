@@ -27,6 +27,12 @@ class GameRepository(private val db: AppDatabase) {
     val player = db.playerDao().observeFirst()
     suspend fun playerExists(): Boolean = db.playerDao().first() != null
     suspend fun currentPlayer(): PlayerEntity? = db.playerDao().first()
+    suspend fun updateProfile(playerId: String, name: String, avatar: String) =
+        db.playerDao().updateProfile(playerId, name, avatar)
+
+    fun wins(playerId: String) = db.matchDao().countResults(playerId, "WIN")
+    fun played(playerId: String) = db.matchDao().countPlayed(playerId)
+    fun distinctGamesFinished() = db.matchDao().countDistinctGamesFinished()
     fun wallet(playerId: String) = db.walletDao().observe(playerId)
     fun ledger(playerId: String) = db.coinDao().observeRecent(playerId)
     val recentMatches = db.matchDao().observeRecent()
