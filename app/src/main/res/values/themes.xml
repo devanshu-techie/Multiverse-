@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.MiniVerse" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#171523</item>
+    </style>
+</resources>
