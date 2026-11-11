@@ -87,6 +87,7 @@ class GameRepository(private val db: AppDatabase) {
             val result = when (outcome) {
                 is GameOutcome.Winner -> if (outcome.playerId == p.id) "WIN" else "LOSS"
                 GameOutcome.Draw -> "DRAW"
+                is GameOutcome.Lost -> "LOSS"
                 GameOutcome.Incomplete -> "ABANDONED"
             }
             if (p.id == ownerId && outcome !is GameOutcome.Incomplete) {
@@ -102,6 +103,7 @@ class GameRepository(private val db: AppDatabase) {
         val status = when (outcome) {
             is GameOutcome.Winner -> "COMPLETED"
             GameOutcome.Draw -> "DRAW"
+            is GameOutcome.Lost -> "COMPLETED"
             GameOutcome.Incomplete -> "ABANDONED"
         }
         db.withTransaction {

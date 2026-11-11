@@ -49,12 +49,14 @@ fun ResultScreen(repository: GameRepository, matchId: String, onHome: () -> Unit
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(if (status == "DRAW") "🤝" else "🏆", fontSize = 56.sp)
+        val winnerRow = rows.firstOrNull { it.result == "WIN" }
+        Text(if (status == "DRAW") "🤝" else if (winnerRow == null) "💪" else "🏆", fontSize = 56.sp)
         Text(
-            when (status) {
-                "DRAW" -> "It's a draw!"
-                "ABANDONED" -> "Match abandoned"
-                else -> "${rows.firstOrNull { it.result == "WIN" }?.playerName ?: "Someone"} wins!"
+            when {
+                status == "DRAW" -> "It's a draw!"
+                status == "ABANDONED" -> "Match abandoned"
+                winnerRow != null -> "${winnerRow.playerName} wins!"
+                else -> "Nice try - play again!"
             },
             fontSize = 26.sp, fontWeight = FontWeight.Black,
         )

@@ -54,7 +54,8 @@ fun SetupScreen(
 ) {
     val def = GameRegistry.find(gameId)?.definition
     val maxP = def?.maxPlayers ?: 2
-    var playerCount by remember { mutableIntStateOf(2) }
+    val minP = (def?.minPlayers ?: 2).coerceAtLeast(1)
+    var playerCount by remember { mutableIntStateOf(minP) }
     val guestNames = remember { mutableStateOf(listOf("Player 2", "Player 3", "Player 4")) }
     var starting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -75,12 +76,12 @@ fun SetupScreen(
                     fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (maxP > 2) {
+        if (maxP > minP) {
             Spacer(Modifier.height(18.dp))
             Text("How many players?", fontWeight = FontWeight.Black)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                (2..maxP).forEach { n ->
+                (minP..maxP).forEach { n ->
                     Surface(
                         shape = CircleShape,
                         color = if (playerCount == n) MvPurple else Color.White,

@@ -97,6 +97,17 @@ fun GameplayScreen(
             is com.devanshu.miniverse.games.rps.RpsState -> RpsBoard(state, vm)
             is com.devanshu.miniverse.games.quickmath.MathState -> QuickMathBoard(state, vm)
             is com.devanshu.miniverse.games.whack.WhackState -> WhackBoard(state, vm)
+            is com.devanshu.miniverse.games.dotsboxes.DbState -> DotsBoxesBoard(state, vm)
+            is com.devanshu.miniverse.games.ludo.LudoState -> LudoBoard(state, vm)
+            is com.devanshu.miniverse.games.tank.TankState -> TankBoard(state, vm)
+            is com.devanshu.miniverse.games.merge.MergeState -> MergeBoard(state, vm)
+            is com.devanshu.miniverse.games.scramble.ScrambleState -> ScrambleBoard(state, vm)
+            is com.devanshu.miniverse.games.simon.SimonState -> SimonBoard(state, vm)
+            is com.devanshu.miniverse.games.maze.MazeState -> MazeBoard(state, vm)
+            is com.devanshu.miniverse.games.football.FootballState -> FootballBoard(state, vm)
+            is com.devanshu.miniverse.games.airhockey.HockeyState -> AirHockeyBoard(state, vm)
+            is com.devanshu.miniverse.games.sumo.SumoState -> SumoBoard(state, vm)
+            is com.devanshu.miniverse.games.arcade.ScoreState -> ScoreRunHost(state, vm)
         }
     }
 }

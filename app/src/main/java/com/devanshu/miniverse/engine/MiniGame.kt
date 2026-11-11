@@ -22,6 +22,8 @@ sealed interface GameOutcome {
     data object Incomplete : GameOutcome
     data class Winner(val playerId: String) : GameOutcome
     data object Draw : GameOutcome
+    /** Single-player challenge failed (counts as a LOSS result). */
+    data class Lost(val playerId: String) : GameOutcome
 }
 
 /**

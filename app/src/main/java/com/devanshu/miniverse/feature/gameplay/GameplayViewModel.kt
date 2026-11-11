@@ -95,6 +95,17 @@ class GameplayViewModel(
         is com.devanshu.miniverse.games.quickmath.MathState -> state.scores
         is com.devanshu.miniverse.games.whack.WhackState -> state.scores
         is com.devanshu.miniverse.games.snakes.SnlState -> state.positions.mapValues { it.value }
+        is com.devanshu.miniverse.games.dotsboxes.DbState -> state.scores
+        is com.devanshu.miniverse.games.ludo.LudoState -> state.progress.mapValues { it.value }
+        is com.devanshu.miniverse.games.tank.TankState -> state.hits
+        is com.devanshu.miniverse.games.merge.MergeState -> mapOf(players.first().id to state.score)
+        is com.devanshu.miniverse.games.scramble.ScrambleState -> mapOf(players.first().id to state.score)
+        is com.devanshu.miniverse.games.simon.SimonState -> players.associate { it.id to state.length }
+        is com.devanshu.miniverse.games.maze.MazeState -> state.moves
+        is com.devanshu.miniverse.games.football.FootballState -> state.scores
+        is com.devanshu.miniverse.games.airhockey.HockeyState -> state.goals
+        is com.devanshu.miniverse.games.sumo.SumoState -> state.roundWins
+        is com.devanshu.miniverse.games.arcade.ScoreState -> state.scores
         else -> players.associate { it.id to 0 }
     }
 
