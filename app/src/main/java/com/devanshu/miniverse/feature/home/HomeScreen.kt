@@ -42,7 +42,10 @@ import com.devanshu.miniverse.ui.theme.MvPink
 import com.devanshu.miniverse.ui.theme.MvPurple
 import com.devanshu.miniverse.ui.theme.MvSky
 import com.devanshu.miniverse.ui.theme.MvYellow
+import com.devanshu.miniverse.ui.theme.animatedGradient
+import com.devanshu.miniverse.ui.theme.bouncyClick
 import com.devanshu.miniverse.ui.theme.categoryColor
+import com.devanshu.miniverse.ui.theme.floaty
 import kotlinx.coroutines.flow.flowOf
 
 @Composable
@@ -62,10 +65,8 @@ fun HomeScreen(
         item {
             Box(
                 Modifier.fillMaxWidth()
-                    .background(
-                        Brush.linearGradient(listOf(MvPurple, MvPink, MvSky)),
-                        RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
-                    )
+                    .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                    .animatedGradient(listOf(Color(0xFF6A3DF5), MvPink, MvSky, Color(0xFF6A3DF5)))
                     .padding(20.dp),
             ) {
                 Column {
@@ -93,7 +94,7 @@ fun HomeScreen(
                             Surface(
                                 shape = RoundedCornerShape(18.dp),
                                 color = Color.White.copy(alpha = 0.22f),
-                                modifier = Modifier.clickable { onPickGame(def.id) },
+                                modifier = Modifier.floaty(3.dp, 2200 + i * 250).bouncyClick { onPickGame(def.id) },
                             ) {
                                 Column(
                                     Modifier.width(92.dp).padding(vertical = 12.dp),
@@ -125,7 +126,7 @@ fun HomeScreen(
                 color = CardPastels[i % CardPastels.size],
                 modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 5.dp)
-                    .clickable { onPickGame(def.id) },
+                    .bouncyClick { onPickGame(def.id) },
             ) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(

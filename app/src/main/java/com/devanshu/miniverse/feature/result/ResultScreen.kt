@@ -1,6 +1,12 @@
 package com.devanshu.miniverse.feature.result
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,7 +33,10 @@ import com.devanshu.miniverse.data.GameRepository
 import com.devanshu.miniverse.data.MatchPlayerEntity
 import com.devanshu.miniverse.data.RewardPolicy
 import com.devanshu.miniverse.engine.GameRegistry
+import com.devanshu.miniverse.ui.theme.ConfettiOverlay
 import com.devanshu.miniverse.ui.theme.MvMint
+import com.devanshu.miniverse.ui.theme.StarField
+import com.devanshu.miniverse.ui.theme.pulseGlow
 import com.devanshu.miniverse.ui.theme.MvYellow
 
 /** Reads the SAVED result from Room (never recomputes - roadmap rule). */
@@ -44,13 +53,32 @@ fun ResultScreen(repository: GameRepository, matchId: String, onHome: () -> Unit
         gameName = match?.let { GameRegistry.find(it.gameId)?.definition?.name } ?: ""
     }
 
+    val winnerRow = rows.firstOrNull { it.result == "WIN" }
+    val pop = remember { Animatable(0f) }
+    LaunchedEffect(status) {
+        if (status.isNotEmpty()) {
+            pop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioHighBouncy, stiffness = Spring.StiffnessLow))
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+    StarField()
+    if (winnerRow != null) ConfettiOverlay()
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val winnerRow = rows.firstOrNull { it.result == "WIN" }
-        Text(if (status == "DRAW") "🤝" else if (winnerRow == null) "💪" else "🏆", fontSize = 56.sp)
+        Box(Modifier.size(150.dp).pulseGlow(MvYellow), contentAlignment = Alignment.Center) {
+            Text(
+                if (status == "DRAW") "🤝" else if (winnerRow == null) "💪" else "🏆", fontSize = 72.sp,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = pop.value; scaleY = pop.value
+                    rotationY = (1f - pop.value) * 360f
+                    cameraDistance = 14f * density
+                },
+            )
+        }
         Text(
             when {
                 status == "DRAW" -> "It's a draw!"
@@ -89,5 +117,6 @@ fun ResultScreen(repository: GameRepository, matchId: String, onHome: () -> Unit
         Button(onClick = onHome, modifier = Modifier.fillMaxWidth().height(52.dp)) {
             Text("Back to Home", fontSize = 16.sp)
         }
+    }
     }
 }

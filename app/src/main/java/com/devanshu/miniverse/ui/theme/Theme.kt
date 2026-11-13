@@ -32,22 +32,23 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = MvPurple,
+    primary = Color(0xFF9D7BFF),
     onPrimary = Color.White,
     secondary = MvMint,
     onSecondary = MvDark,
     tertiary = MvSky,
     error = MvCoral,
-    background = MvDark,
+    background = Color(0xFF0E0B1E),          // deep space
     onBackground = Color(0xFFF1EFFA),
-    surface = Color(0xFF221F33),
+    surface = Color(0xFF1D1832),
     onSurface = Color(0xFFF1EFFA),
     surfaceVariant = Color(0xFF2E2A45),
     onSurfaceVariant = Color(0xFFB9B3D6),
 )
 
+/** Futuristic neon look: the app is dark-first (pass darkTheme = false to opt out). */
 @Composable
-fun MiniVerseTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun MiniVerseTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
         content = content,

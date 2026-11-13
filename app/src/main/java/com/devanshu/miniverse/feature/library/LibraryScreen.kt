@@ -34,6 +34,7 @@ import com.devanshu.miniverse.engine.GameRegistry
 import com.devanshu.miniverse.ui.theme.CardPastels
 import com.devanshu.miniverse.ui.theme.MvDark
 import com.devanshu.miniverse.ui.theme.MvPurple
+import com.devanshu.miniverse.ui.theme.bouncyClick
 import com.devanshu.miniverse.ui.theme.categoryColor
 
 @Composable
@@ -70,7 +71,7 @@ fun LibraryScreen(onPickGame: (String) -> Unit) {
                 Surface(
                     shape = RoundedCornerShape(22.dp),
                     color = CardPastels[idx % CardPastels.size],
-                    modifier = Modifier.fillMaxWidth().clickable { onPickGame(def.id) },
+                    modifier = Modifier.fillMaxWidth().bouncyClick { onPickGame(def.id) },
                 ) {
                     Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
