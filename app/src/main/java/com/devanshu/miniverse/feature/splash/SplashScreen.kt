@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devanshu.miniverse.data.GameRepository
+import com.devanshu.miniverse.ui.theme.MascotLogo
 import com.devanshu.miniverse.ui.theme.MvPink
 import com.devanshu.miniverse.ui.theme.MvSky
 import com.devanshu.miniverse.ui.theme.MvYellow
@@ -56,8 +57,8 @@ fun SplashScreen(hasPlayer: () -> GameRepository, onReady: (Boolean) -> Unit) {
         StarField()
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(190.dp).pulseGlow(MvPink), contentAlignment = Alignment.Center) {
-                Text(
-                    "🎮", fontSize = 92.sp,
+                MascotLogo(
+                    size = 170.dp,
                     modifier = Modifier.graphicsLayer {
                         scaleX = scale.value; scaleY = scale.value
                         rotationY = spin.value

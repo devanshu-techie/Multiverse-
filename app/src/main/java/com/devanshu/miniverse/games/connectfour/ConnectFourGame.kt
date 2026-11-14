@@ -5,10 +5,13 @@ import com.devanshu.miniverse.engine.GameDefinition
 import com.devanshu.miniverse.engine.GameOutcome
 import com.devanshu.miniverse.engine.GamePlayer
 import com.devanshu.miniverse.engine.MiniGame
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 const val COLS = 7
 const val ROWS = 6
 
+@Serializable
 data class C4State(
     val players: List<GamePlayer>,
     val grid: List<String?>, // ROWS*COLS, row 0 = top; index = row * COLS + col
@@ -63,4 +66,8 @@ object ConnectFourGame : MiniGame<C4State, C4Action> {
         }
         return if (g.all { it != null }) GameOutcome.Draw else GameOutcome.Incomplete
     }
+
+    override fun encodeState(state: C4State): String? = Json.encodeToString(C4State.serializer(), state)
+    override fun decodeState(json: String): C4State? =
+        runCatching { Json.decodeFromString(C4State.serializer(), json) }.getOrNull()
 }

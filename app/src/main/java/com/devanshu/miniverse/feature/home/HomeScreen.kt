@@ -34,7 +34,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.devanshu.miniverse.audio.Voice
 import com.devanshu.miniverse.data.GameRepository
+import com.devanshu.miniverse.data.SettingsRepository
+import kotlinx.coroutines.launch
 import com.devanshu.miniverse.engine.GameRegistry
 import com.devanshu.miniverse.ui.theme.CardPastels
 import com.devanshu.miniverse.ui.theme.MvDark
@@ -57,11 +66,26 @@ fun HomeScreen(
     onOpenSpin: () -> Unit = {},
     onOpenShop: () -> Unit = {},
     onOpenStats: () -> Unit = {},
+    onResumeMatch: (String) -> Unit = {},
+    onRestartGame: (String) -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val store = remember { SettingsRepository(context.applicationContext) }
+    val savedMatch by store.savedMatch.collectAsState(initial = null)
+    val scope = rememberCoroutineScope()
     val player by repository.player.collectAsState(initial = null)
     val wallet by (player?.let { repository.wallet(it.playerId) } ?: flowOf(null)).collectAsState(initial = null)
     val matches by repository.recentMatches.collectAsState(initial = emptyList())
     val defs = GameRegistry.definitions
+
+    // Say hello out loud once each time the app is opened.
+    LaunchedEffect(player?.name) {
+        val name = player?.name
+        if (name != null && !Greeter.greeted) {
+            Greeter.greeted = true
+            Voice.say("Hello $name! Welcome to MiniVerse. Let's play!")
+        }
+    }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
         // Playful gradient header
@@ -76,7 +100,7 @@ fun HomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(player?.avatar ?: "🙂", fontSize = 40.sp)
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("Hi, ${player?.name ?: "player"}! 👋",
+                            Text("👑 Welcome, ${player?.name ?: "player"}!",
                                 color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
                             Text("What shall we play today?",
                                 color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
@@ -108,6 +132,46 @@ fun HomeScreen(
                                         fontWeight = FontWeight.Bold, maxLines = 1)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+        savedMatch?.let { saved ->
+            item {
+                val savedDef = GameRegistry.find(saved.gameId)?.definition
+                Surface(
+                    shape = RoundedCornerShape(22.dp), color = MvYellow,
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(savedDef?.emoji ?: "🎮", fontSize = 34.sp, modifier = Modifier.floaty(3.dp, 1800))
+                            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                                Text("Unfinished game", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MvDark)
+                                Text(savedDef?.name ?: "Your game", fontSize = 18.sp, fontWeight = FontWeight.Black, color = MvDark)
+                            }
+                        }
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { onResumeMatch(saved.matchId) }, modifier = Modifier.weight(1f)) {
+                                Text("▶ Continue", fontWeight = FontWeight.Black)
+                            }
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        repository.abandonMatch(saved.matchId)
+                                        store.clearSavedMatch()
+                                        onRestartGame(saved.gameId)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) { Text("↺ Restart", fontWeight = FontWeight.Black) }
+                            TextButton(onClick = {
+                                scope.launch {
+                                    repository.abandonMatch(saved.matchId)
+                                    store.clearSavedMatch()
+                                }
+                            }) { Text("✕", color = MvDark, fontWeight = FontWeight.Black) }
                         }
                     }
                 }
@@ -199,3 +263,6 @@ fun HomeScreen(
         }
     }
 }
+
+/** Remembers that the spoken greeting already happened in this app session. */
+private object Greeter { var greeted = false }

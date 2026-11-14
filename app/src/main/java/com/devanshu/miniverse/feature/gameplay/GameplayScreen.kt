@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +24,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,7 +37,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devanshu.miniverse.audio.Sfx
 import com.devanshu.miniverse.data.GameRepository
+import com.devanshu.miniverse.data.SettingsRepository
+import com.devanshu.miniverse.engine.BOT_ID
+import com.devanshu.miniverse.engine.GameRegistry
 import com.devanshu.miniverse.engine.GameOutcome
 import com.devanshu.miniverse.games.connectfour.C4Action
 import com.devanshu.miniverse.games.connectfour.C4State
@@ -52,6 +60,7 @@ import com.devanshu.miniverse.ui.theme.MvDark
 import com.devanshu.miniverse.ui.theme.MvMint
 import com.devanshu.miniverse.ui.theme.MvYellow
 import com.devanshu.miniverse.ui.theme.SeatColors
+import com.devanshu.miniverse.ui.theme.StarField
 import kotlinx.coroutines.delay
 
 @Composable
@@ -61,40 +70,82 @@ fun GameplayScreen(
     onFinished: (String) -> Unit,
     onQuit: () -> Unit,
 ) {
-    val vm: GameplayViewModel = viewModel(factory = GameplayViewModel.Factory(repository, matchId))
+    val context = LocalContext.current
+    val store = remember { SettingsRepository(context.applicationContext) }
+    val vm: GameplayViewModel = viewModel(factory = GameplayViewModel.Factory(repository, matchId, store))
     val session by vm.session.collectAsState()
     val finished by vm.finished.collectAsState()
+    val resumable by vm.resumable.collectAsState()
+    var menuOpen by remember { mutableStateOf(false) }
 
-    LaunchedEffect(finished) { if (finished) onFinished(matchId) }
+    // Let everyone see the final board, play the result sound, then show the result page.
+    LaunchedEffect(finished) {
+        if (finished) {
+            val outcome = session?.outcome
+            Sfx.play(if (outcome is GameOutcome.Lost) Sfx.LOSE else Sfx.WIN)
+            delay(1700)
+            onFinished(matchId)
+        }
+    }
 
     val s = session ?: run {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Loading...") }
         return
     }
 
+    // Robot opponent for the simple turn-based games.
+    LaunchedEffect(s.state) {
+        val action = Bots.move(s.state)
+        if (action != null && s.outcome == GameOutcome.Incomplete) {
+            delay(850)
+            vm.submit(action, BOT_ID)
+        }
+    }
+
+    if (menuOpen) {
+        AlertDialog(
+            onDismissRequest = { menuOpen = false },
+            title = { Text("Game paused", fontWeight = FontWeight.Black) },
+            text = {
+                Text(
+                    if (resumable) "Save this game and come back later, or quit it?"
+                    else "This game can't be saved. Quit it or keep playing?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { menuOpen = false }) { Text("▶ Keep playing") }
+            },
+            dismissButton = {
+                Row {
+                    if (resumable) {
+                        TextButton(onClick = { menuOpen = false; onQuit() }) { Text("💾 Save & exit") }
+                    }
+                    TextButton(onClick = { menuOpen = false; vm.quit(); onQuit() }) {
+                        Text("✕ Quit", color = MvCoral)
+                    }
+                }
+            },
+        )
+    }
+
+    Box(Modifier.fillMaxSize()) {
+    StarField()
     Column(Modifier.fillMaxSize().padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { vm.quit(); onQuit() }) { Text("✕ Quit") }
+            TextButton(onClick = { menuOpen = true }) { Text("⏸ Menu", fontWeight = FontWeight.Bold) }
             Spacer(Modifier.weight(1f))
-            s.players.forEachIndexed { i, p ->
-                Surface(shape = RoundedCornerShape(14.dp), color = SeatColors[i % SeatColors.size]) {
-                    Text(p.name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
-                }
-                Spacer(Modifier.size(6.dp))
-            }
+            Text(
+                GameRegistry.find(s.gameId)?.definition?.let { "${it.emoji} ${it.name}" } ?: "",
+                fontWeight = FontWeight.Black, fontSize = 15.sp,
+            )
         }
         when (val state = s.state) {
-            is TttState -> TttBoard(state) { cell ->
-                vm.submit(TttAction(cell), state.players[state.turnIndex].id)
-            }
-            is C4State -> C4Board(state) { col ->
-                vm.submit(C4Action(col), state.players[state.turnIndex].id)
-            }
+            is TttState -> TicTacToeBoard(state, vm)
+            is C4State -> ConnectFourBoard(state, vm)
             is MemState -> MemoryBoard(state, vm)
             is ReactionState -> ReactionBoard(state, vm)
             is com.devanshu.miniverse.games.snakes.SnlState -> SnakesBoard(state, vm)
-            is com.devanshu.miniverse.games.rps.RpsState -> RpsBoard(state, vm)
+            is com.devanshu.miniverse.games.rps.RpsState -> RockPaperScissorsBoard(state, vm)
             is com.devanshu.miniverse.games.quickmath.MathState -> QuickMathBoard(state, vm)
             is com.devanshu.miniverse.games.whack.WhackState -> WhackBoard(state, vm)
             is com.devanshu.miniverse.games.dotsboxes.DbState -> DotsBoxesBoard(state, vm)
@@ -109,6 +160,7 @@ fun GameplayScreen(
             is com.devanshu.miniverse.games.sumo.SumoState -> SumoBoard(state, vm)
             is com.devanshu.miniverse.games.arcade.ScoreState -> ScoreRunHost(state, vm)
         }
+    }
     }
 }
 

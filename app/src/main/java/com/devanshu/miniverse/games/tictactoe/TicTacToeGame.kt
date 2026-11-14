@@ -5,7 +5,10 @@ import com.devanshu.miniverse.engine.GameDefinition
 import com.devanshu.miniverse.engine.GameOutcome
 import com.devanshu.miniverse.engine.GamePlayer
 import com.devanshu.miniverse.engine.MiniGame
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
+@Serializable
 data class TttState(
     val players: List<GamePlayer>,
     val cells: List<String?>, // 9 cells holding playerId or null
@@ -51,4 +54,8 @@ object TicTacToeGame : MiniGame<TttState, TttAction> {
         }
         return if (state.cells.all { it != null }) GameOutcome.Draw else GameOutcome.Incomplete
     }
+
+    override fun encodeState(state: TttState): String? = Json.encodeToString(TttState.serializer(), state)
+    override fun decodeState(json: String): TttState? =
+        runCatching { Json.decodeFromString(TttState.serializer(), json) }.getOrNull()
 }

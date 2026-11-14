@@ -125,6 +125,8 @@ fun MiniVerseNavHost(repository: GameRepository) {
                     onOpenSpin = { nav.navigate(Routes.SPIN) },
                     onOpenShop = { nav.navigate(Routes.SHOP) },
                     onOpenStats = { nav.navigate(Routes.STATS) },
+                    onResumeMatch = { nav.navigate(Routes.play(it)) },
+                    onRestartGame = { nav.navigate(Routes.setup(it)) },
                 )
             }
             composable(Routes.LIBRARY) {

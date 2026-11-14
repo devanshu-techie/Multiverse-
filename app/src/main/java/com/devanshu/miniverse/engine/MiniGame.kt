@@ -1,5 +1,7 @@
 package com.devanshu.miniverse.engine
 
+import kotlinx.serialization.Serializable
+
 /** Game catalogue metadata. */
 data class GameDefinition(
     val id: String,
@@ -11,7 +13,11 @@ data class GameDefinition(
     val description: String,
 )
 
+@Serializable
 data class GamePlayer(val id: String, val name: String, val seat: Int)
+
+/** Id used for the built-in robot opponent. */
+const val BOT_ID = "bot"
 
 sealed interface ActionValidation {
     data object Valid : ActionValidation
@@ -37,4 +43,11 @@ interface MiniGame<S : Any, A : Any> {
     fun validateAction(state: S, action: A, playerId: String): ActionValidation
     fun reduce(state: S, action: A, playerId: String): S
     fun getOutcome(state: S): GameOutcome
+
+    /**
+     * Optional save/restore. Games that return a string here can be continued
+     * after the app is closed; others simply restart.
+     */
+    fun encodeState(state: S): String? = null
+    fun decodeState(json: String): S? = null
 }

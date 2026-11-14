@@ -41,10 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devanshu.miniverse.games.ludo.LudoGame
-import com.devanshu.miniverse.games.ludo.LudoRoll
 import com.devanshu.miniverse.games.ludo.LudoState
-import com.devanshu.miniverse.games.ludo.RING
-import com.devanshu.miniverse.games.ludo.TRACK
 import com.devanshu.miniverse.games.maze.MZ
 import com.devanshu.miniverse.games.maze.MazeGame
 import com.devanshu.miniverse.games.maze.MazeMove
@@ -77,82 +74,6 @@ import com.devanshu.miniverse.ui.theme.MvYellow
 import com.devanshu.miniverse.ui.theme.SeatColors
 import kotlinx.coroutines.delay
 import kotlin.math.abs
-
-// ---------- Mini Ludo (ring race) ----------
-
-@Composable
-internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
-    val current = state.players[state.turnIndex]
-    // 7x7 border ring = 24 cells, clockwise from top-left
-    val ring = buildList {
-        for (c in 0..6) add(0 to c)
-        for (r in 1..6) add(r to 6)
-        for (c in 5 downTo 0) add(6 to c)
-        for (r in 5 downTo 1) add(r to 0)
-    }
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            "${current.name}'s turn" + (state.lastRoll?.let { "  ·  🎲 $it" } ?: ""),
-            fontWeight = FontWeight.Black, fontSize = 16.sp,
-            color = SeatColors[state.turnIndex % SeatColors.size],
-            modifier = Modifier.padding(vertical = 6.dp),
-        )
-        when (state.lastEvent) {
-            "capture" -> Text("💥 Sent them back to start!", color = MvCoral, fontWeight = FontWeight.Bold)
-            "exact" -> Text("Need the exact number to finish!", color = MvOrange, fontWeight = FontWeight.Bold)
-            "safe" -> Text("Safe square - no capture here.", color = MvMint, fontWeight = FontWeight.Bold)
-        }
-        Column(Modifier.fillMaxWidth().aspectRatio(1f).padding(6.dp)) {
-            for (r in 0..6) {
-                Row(Modifier.weight(1f)) {
-                    for (c in 0..6) {
-                        val cell = ring.indexOf(r to c)
-                        Box(Modifier.weight(1f).fillMaxSize().padding(1.dp), contentAlignment = Alignment.Center) {
-                            if (cell >= 0) {
-                                val isStart = LudoGame.isSafeCell(cell)
-                                val startSeat = cell / (RING / 4)
-                                Box(
-                                    Modifier.fillMaxSize().clip(RoundedCornerShape(6.dp))
-                                        .background(
-                                            if (isStart) SeatColors[startSeat % 4].copy(alpha = 0.35f) else MvLemon
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Row {
-                                        state.players.forEach { p ->
-                                            if (LudoGame.ringCell(state, p.id) == cell) {
-                                                Box(
-                                                    Modifier.size(13.dp).clip(CircleShape)
-                                                        .background(SeatColors[p.seat % 4])
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if (r == 3 && c == 3) Text("🏠", fontSize = 20.sp)
-                        }
-                    }
-                }
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-            state.players.forEach { p ->
-                val prog = state.progress[p.id] ?: 0
-                Surface(shape = RoundedCornerShape(10.dp), color = SeatColors[p.seat % 4].copy(alpha = 0.2f)) {
-                    Text(
-                        "${p.name}: " + if (prog >= TRACK) "🏠 home!" else "$prog/$TRACK",
-                        fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                }
-            }
-        }
-        Button(
-            onClick = { vm.submit(LudoRoll, current.id) },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-        ) { Text("🎲 Roll the dice!", fontWeight = FontWeight.Black, fontSize = 16.sp) }
-    }
-}
 
 // ---------- Tank Battle (artillery) ----------
 

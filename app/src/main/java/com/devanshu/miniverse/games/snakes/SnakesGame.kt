@@ -5,21 +5,34 @@ import com.devanshu.miniverse.engine.GameDefinition
 import com.devanshu.miniverse.engine.GameOutcome
 import com.devanshu.miniverse.engine.GamePlayer
 import com.devanshu.miniverse.engine.MiniGame
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlin.random.Random
 
 /**
- * Snakes & Ladders, 2-4 players, cells 1..100 (0 = not started).
+ * Snakes & Ladders, 2-4 players, cells 1..100 (0 = waiting at the start).
  * Dice value is derived from (seed, rollCount), so reduce() stays
- * deterministic: the same match replays identically from the seed.
+ * deterministic. Every roll records exactly what happened (lastMove) so the
+ * board can animate it step by step and explain it.
  */
+@Serializable
+data class SnlMove(
+    val playerId: String,
+    val roll: Int,
+    val from: Int,
+    val landed: Int,        // square reached by walking (before any snake/ladder)
+    val to: Int,            // final square
+    val event: String?,     // "snake", "ladder", "overshoot", "win" or null
+)
+
+@Serializable
 data class SnlState(
     val players: List<GamePlayer>,
     val seed: Long,
     val positions: Map<String, Int>,
     val turnIndex: Int,
     val rollCount: Int,
-    val lastRoll: Int?,          // shown on the dice
-    val lastEvent: String?,      // "snake", "ladder", "exact", null
+    val lastMove: SnlMove?,
 )
 
 data object RollDice
@@ -35,7 +48,7 @@ object SnakesGame : MiniGame<SnlState, RollDice> {
     )
 
     override fun createInitialState(players: List<GamePlayer>, seed: Long) =
-        SnlState(players, seed, players.associate { it.id to 0 }, 0, 0, null, null)
+        SnlState(players, seed, players.associate { it.id to 0 }, 0, 0, null)
 
     override fun validateAction(state: SnlState, action: RollDice, playerId: String): ActionValidation =
         when {
@@ -45,20 +58,22 @@ object SnakesGame : MiniGame<SnlState, RollDice> {
         }
 
     override fun reduce(state: SnlState, action: RollDice, playerId: String): SnlState {
-        val roll = 1 + Random(state.seed + state.rollCount).nextInt(6)
+        val roll = 1 + Random(state.seed + state.rollCount * 7919L).nextInt(6)
         val from = state.positions[playerId] ?: 0
-        var target = from + roll
+        var landed = from + roll
         var event: String? = null
-        if (target > 100) { target = from; event = "need exact" }   // overshoot: stay
-        LADDERS[target]?.let { target = it; event = "ladder" }
-        SNAKES[target]?.let { target = it; event = "snake" }
-        if (target == 100) event = "win"
+        if (landed > 100) { landed = from; event = "overshoot" }   // need the exact number
+        var to = landed
+        LADDERS[landed]?.let { to = it; event = "ladder" }
+        SNAKES[landed]?.let { to = it; event = "snake" }
+        if (to == 100) event = "win"
+        // A six earns another roll (unless the game just ended).
+        val again = roll == 6 && to != 100
         return state.copy(
-            positions = state.positions + (playerId to target),
-            turnIndex = if (target == 100) state.turnIndex else (state.turnIndex + 1) % state.players.size,
+            positions = state.positions + (playerId to to),
+            turnIndex = if (to == 100 || again) state.turnIndex else (state.turnIndex + 1) % state.players.size,
             rollCount = state.rollCount + 1,
-            lastRoll = roll,
-            lastEvent = event,
+            lastMove = SnlMove(playerId, roll, from, landed, to, event),
         )
     }
 
@@ -66,4 +81,8 @@ object SnakesGame : MiniGame<SnlState, RollDice> {
         val winner = state.positions.entries.firstOrNull { it.value == 100 }
         return if (winner != null) GameOutcome.Winner(winner.key) else GameOutcome.Incomplete
     }
+
+    override fun encodeState(state: SnlState): String? = Json.encodeToString(SnlState.serializer(), state)
+    override fun decodeState(json: String): SnlState? =
+        runCatching { Json.decodeFromString(SnlState.serializer(), json) }.getOrNull()
 }
