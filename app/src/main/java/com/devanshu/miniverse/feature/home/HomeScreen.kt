@@ -54,6 +54,9 @@ fun HomeScreen(
     onOpenLibrary: () -> Unit,
     onOpenWallet: () -> Unit,
     onPickGame: (String) -> Unit,
+    onOpenSpin: () -> Unit = {},
+    onOpenShop: () -> Unit = {},
+    onOpenStats: () -> Unit = {},
 ) {
     val player by repository.player.collectAsState(initial = null)
     val wallet by (player?.let { repository.wallet(it.playerId) } ?: flowOf(null)).collectAsState(initial = null)
@@ -105,6 +108,32 @@ fun HomeScreen(
                                         fontWeight = FontWeight.Bold, maxLines = 1)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                listOf(
+                    Triple("🎡", "Daily Spin", onOpenSpin),
+                    Triple("🛍️", "Shop", onOpenShop),
+                    Triple("📊", "My Stats", onOpenStats),
+                ).forEachIndexed { i, (emoji, label, action) ->
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = listOf(MvPink, MvYellow, MvSky)[i].copy(alpha = 0.22f),
+                        modifier = Modifier.weight(1f).bouncyClick { action() },
+                    ) {
+                        Column(
+                            Modifier.padding(vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(emoji, fontSize = 30.sp, modifier = Modifier.floaty(3.dp, 2000 + i * 300))
+                            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Black)
                         }
                     }
                 }

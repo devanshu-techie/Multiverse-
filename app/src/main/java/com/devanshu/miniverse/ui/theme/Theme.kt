@@ -79,5 +79,6 @@ fun categoryColor(category: String): Color = when (category) {
     "Party" -> MvCoral
     "Puzzle" -> MvMint
     "Arcade" -> MvOrange
+    "Motion" -> MvPink
     else -> MvPurple
 }

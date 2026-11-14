@@ -1,7 +1,9 @@
 package com.devanshu.miniverse.engine
 
 import com.devanshu.miniverse.games.airhockey.AirHockeyGame
+import com.devanshu.miniverse.games.arcade.ArBalloonGame
 import com.devanshu.miniverse.games.arcade.BalloonGame
+import com.devanshu.miniverse.games.arcade.TiltGame
 import com.devanshu.miniverse.games.arcade.PinballGame
 import com.devanshu.miniverse.games.arcade.RunnerGame
 import com.devanshu.miniverse.games.connectfour.ConnectFourGame
@@ -28,6 +30,9 @@ import com.devanshu.miniverse.games.whack.WhackGame
  */
 object GameRegistry {
     val games: List<MiniGame<*, *>> = listOf(
+        // Motion & AR (uses camera / tilt sensor)
+        ArBalloonGame,
+        TiltGame,
         // Board & strategy
         TicTacToeGame,
         ConnectFourGame,

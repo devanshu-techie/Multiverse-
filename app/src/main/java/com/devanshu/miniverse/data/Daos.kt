@@ -31,6 +31,9 @@ interface WalletDao {
 
     @Query("SELECT * FROM coin_wallet WHERE playerId = :playerId")
     fun observe(playerId: String): Flow<WalletEntity?>
+
+    @Query("SELECT balance FROM coin_wallet WHERE playerId = :playerId")
+    suspend fun balance(playerId: String): Long?
 }
 
 @Dao
@@ -41,7 +44,16 @@ interface CoinDao {
 
     @Query("SELECT * FROM coin_transaction WHERE playerId = :playerId ORDER BY createdAt DESC LIMIT 100")
     fun observeRecent(playerId: String): Flow<List<CoinTransactionEntity>>
+
+    @Query("SELECT COUNT(*) FROM coin_transaction WHERE claimId = :claimId")
+    fun claimCount(claimId: String): Flow<Int>
+
+    @Query("SELECT claimId FROM coin_transaction WHERE playerId = :playerId AND claimId LIKE :prefix || '%'")
+    fun claimsWithPrefix(playerId: String, prefix: String): Flow<List<String>>
 }
+
+/** Per-game totals for the Stats page. */
+data class GameStat(val gameId: String, val plays: Int, val wins: Int)
 
 @Dao
 interface MatchDao {
@@ -71,4 +83,13 @@ interface MatchDao {
 
     @Query("SELECT COUNT(DISTINCT gameId) FROM `match` WHERE status IN ('COMPLETED','DRAW')")
     fun countDistinctGamesFinished(): Flow<Int>
+
+    @Query(
+        "SELECT m.gameId AS gameId, COUNT(*) AS plays, " +
+            "SUM(CASE WHEN mp.result = 'WIN' THEN 1 ELSE 0 END) AS wins " +
+            "FROM `match` m JOIN match_player mp ON mp.matchId = m.matchId " +
+            "WHERE mp.playerId = :playerId AND mp.result != 'PENDING' " +
+            "GROUP BY m.gameId ORDER BY plays DESC"
+    )
+    fun gameStats(playerId: String): Flow<List<GameStat>>
 }

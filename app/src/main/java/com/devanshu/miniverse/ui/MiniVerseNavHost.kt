@@ -20,6 +20,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.devanshu.miniverse.data.GameRepository
 import com.devanshu.miniverse.feature.achievements.AchievementsScreen
+import com.devanshu.miniverse.feature.extras.DailySpinScreen
+import com.devanshu.miniverse.feature.extras.GameDetailsScreen
+import com.devanshu.miniverse.feature.extras.ShopScreen
+import com.devanshu.miniverse.feature.extras.StatsScreen
 import com.devanshu.miniverse.feature.gameplay.GameplayScreen
 import com.devanshu.miniverse.feature.history.HistoryScreen
 import com.devanshu.miniverse.feature.home.HomeScreen
@@ -42,6 +46,10 @@ object Routes {
     const val WALLET = "wallet"
     const val SETTINGS = "settings"
     const val HISTORY = "history"
+    const val SPIN = "spin"
+    const val SHOP = "shop"
+    const val STATS = "stats"
+    fun details(gameId: String) = "details/$gameId"
     fun setup(gameId: String) = "setup/$gameId"
     fun play(matchId: String) = "play/$matchId"
     fun result(matchId: String) = "result/$matchId"
@@ -113,11 +121,29 @@ fun MiniVerseNavHost(repository: GameRepository) {
                     repository = repository,
                     onOpenLibrary = { nav.navigate(Routes.LIBRARY) },
                     onOpenWallet = { nav.navigate(Routes.WALLET) },
-                    onPickGame = { nav.navigate(Routes.setup(it)) },
+                    onPickGame = { nav.navigate(Routes.details(it)) },
+                    onOpenSpin = { nav.navigate(Routes.SPIN) },
+                    onOpenShop = { nav.navigate(Routes.SHOP) },
+                    onOpenStats = { nav.navigate(Routes.STATS) },
                 )
             }
             composable(Routes.LIBRARY) {
-                LibraryScreen(onPickGame = { nav.navigate(Routes.setup(it)) })
+                LibraryScreen(onPickGame = { nav.navigate(Routes.details(it)) })
+            }
+            composable(Routes.SPIN) { DailySpinScreen(repository, onBack = { nav.popBackStack() }) }
+            composable(Routes.SHOP) { ShopScreen(repository, onBack = { nav.popBackStack() }) }
+            composable(Routes.STATS) { StatsScreen(repository, onBack = { nav.popBackStack() }) }
+            composable(
+                "details/{gameId}",
+                arguments = listOf(navArgument("gameId") { type = NavType.StringType }),
+            ) { entry ->
+                val gameId = entry.arguments?.getString("gameId").orEmpty()
+                GameDetailsScreen(
+                    repository = repository,
+                    gameId = gameId,
+                    onBack = { nav.popBackStack() },
+                    onPlay = { nav.navigate(Routes.setup(gameId)) },
+                )
             }
             composable(Routes.ACHIEVEMENTS) { AchievementsScreen(repository) }
             composable(Routes.PROFILE) {

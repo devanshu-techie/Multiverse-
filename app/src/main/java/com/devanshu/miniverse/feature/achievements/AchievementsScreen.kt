@@ -45,7 +45,7 @@ fun AchievementsScreen(repository: GameRepository) {
         Achievement("🔥", "On a Roll", "Win 5 matches", wins >= 5),
         Achievement("👑", "Champion", "Win 20 matches", wins >= 20),
         Achievement("🎮", "Explorer", "Finish matches in 3 different games", variety >= 3),
-        Achievement("🌟", "Collector", "Finish matches in all 8 games", variety >= 8),
+        Achievement("🌟", "Collector", "Finish matches in all 23 games", variety >= 23),
         Achievement("🪙", "Saver", "Hold 200 MiniCoins", coins >= 200),
         Achievement("💰", "Rich Kid", "Hold 500 MiniCoins", coins >= 500),
         Achievement("🎯", "Regular", "Play 10 matches", played >= 10),

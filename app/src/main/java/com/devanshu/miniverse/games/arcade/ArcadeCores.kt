@@ -69,6 +69,16 @@ val RunnerGame = ScoreChallengeGame(
         "Jump the cactuses, run as far as you can!"),
     soloTarget = 300,
 )
+val ArBalloonGame = ScoreChallengeGame(
+    GameDefinition("arballoon", "AR Balloon Hunt", "📸", "Motion", 1, 2,
+        "Balloons float in YOUR room! Pop them through the camera."),
+    soloTarget = 15,
+)
+val TiltGame = ScoreChallengeGame(
+    GameDefinition("tilt", "Tilt & Catch", "📱", "Motion", 1, 2,
+        "Tilt your phone to roll the ball and grab the stars!"),
+    soloTarget = 12,
+)
 val BalloonGame = ScoreChallengeGame(
     GameDefinition("balloon", "Balloon Pop", "🎈", "Arcade", 1, 2,
         "Pop balloons before they float away. 30 seconds!"),

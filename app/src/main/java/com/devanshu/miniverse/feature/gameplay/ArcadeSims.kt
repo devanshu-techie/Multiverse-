@@ -278,6 +278,8 @@ internal fun ScoreRunHost(state: ScoreState, vm: GameplayViewModel) {
             val end: (Int) -> Unit = { score -> vm.submit(SubmitScore(score), runner.id) }
             Box(Modifier.weight(1f)) {
                 when (state.gameId) {
+                    "arballoon" -> ArBalloonSim(onEnd = end)
+                    "tilt" -> TiltSim(onEnd = end)
                     "pinball" -> PinballSim(runner, onEnd = end)
                     "runner" -> RunnerSim(runner, onEnd = end)
                     else -> BalloonSim(runner, onEnd = end)
@@ -435,6 +437,7 @@ private fun BalloonSim(runner: GamePlayer, onEnd: (Int) -> Unit) {
     var score by remember { mutableIntStateOf(0) }
     var timeLeft by remember { mutableIntStateOf(30) }
     var nextId by remember { mutableIntStateOf(0) }
+    var box by remember { mutableStateOf(IntSize(1, 1)) }
 
     LaunchedEffect(Unit) {
         var last = 0L
@@ -461,7 +464,10 @@ private fun BalloonSim(runner: GamePlayer, onEnd: (Int) -> Unit) {
         onEnd(score.coerceAtLeast(0))
     }
 
-    Box(Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)).background(MvSky.copy(alpha = 0.2f))) {
+    Box(
+        Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)).background(MvSky.copy(alpha = 0.2f))
+            .onSizeChanged { box = it },
+    ) {
         Text("⏱ $timeLeft s   ·   Score $score", fontWeight = FontWeight.Black,
             modifier = Modifier.padding(10.dp))
         balloons.forEach { b ->
@@ -471,8 +477,8 @@ private fun BalloonSim(runner: GamePlayer, onEnd: (Int) -> Unit) {
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .graphicsLayer {
-                        translationX = b.x * size.width
-                        translationY = b.y * size.height
+                        translationX = b.x * box.width
+                        translationY = b.y * box.height
                     }
                     .clickable {
                         balloons = balloons.filter { it.id != b.id }

@@ -120,6 +120,46 @@ class GameRepository(private val db: AppDatabase) {
     suspend fun matchWithPlayers(matchId: String): Pair<MatchEntity?, List<MatchPlayerEntity>> =
         db.matchDao().byId(matchId) to db.matchDao().playersOf(matchId)
 
+    fun gameStats(playerId: String) = db.matchDao().gameStats(playerId)
+    fun claimCount(claimId: String) = db.coinDao().claimCount(claimId)
+    fun ownedShopItems(playerId: String) = db.coinDao().claimsWithPrefix(playerId, "shop:")
+
+    /**
+     * One-off bonus (daily spin etc). The key makes it idempotent: asking twice
+     * with the same key pays once. Returns true when coins were actually added.
+     */
+    suspend fun claimBonus(playerId: String, key: String, reason: String, amount: Long): Boolean =
+        db.withTransaction {
+            val now = System.currentTimeMillis()
+            val inserted = db.coinDao().insertIgnore(
+                CoinTransactionEntity(
+                    transactionId = UUID.randomUUID().toString(),
+                    claimId = key, playerId = playerId, matchId = null,
+                    amount = amount, reason = reason, createdAt = now,
+                )
+            )
+            if (inserted == -1L) false else { db.walletDao().add(playerId, amount, now); true }
+        }
+
+    /**
+     * Shop purchase: checks the balance, records a negative ledger entry and
+     * lowers the wallet in one transaction. Owning an item = its claim exists.
+     */
+    suspend fun purchase(playerId: String, itemId: String, price: Long): Boolean =
+        db.withTransaction {
+            val balance = db.walletDao().balance(playerId) ?: 0L
+            if (balance < price) return@withTransaction false
+            val now = System.currentTimeMillis()
+            val inserted = db.coinDao().insertIgnore(
+                CoinTransactionEntity(
+                    transactionId = UUID.randomUUID().toString(),
+                    claimId = "shop:$itemId", playerId = playerId, matchId = null,
+                    amount = -price, reason = "shop $itemId", createdAt = now,
+                )
+            )
+            if (inserted == -1L) false else { db.walletDao().add(playerId, -price, now); true }
+        }
+
     /** Must be called inside a transaction. */
     private suspend fun award(claims: List<RewardClaim>) {
         val now = System.currentTimeMillis()
