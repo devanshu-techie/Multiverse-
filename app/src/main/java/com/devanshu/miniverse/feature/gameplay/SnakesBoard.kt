@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -81,6 +82,8 @@ internal fun SnakesBoard(state: SnlState, vm: GameplayViewModel) {
     var banner by remember { mutableStateOf("Roll the dice to start!") }
     var bannerColor by remember { mutableStateOf(Color(0xFF3FA9F5)) }
     var flashSquare by remember { mutableStateOf<Int?>(null) }
+    var swallowed by remember { mutableStateOf(false) }             // token is inside a snake
+    var swallowColor by remember { mutableStateOf(Color(0xFF39B54A)) }
 
     fun colorOf(playerId: String) = PlayerColors[state.players.indexOfFirst { it.id == playerId }.coerceAtLeast(0) % 4]
     fun nameOf(playerId: String) = state.players.firstOrNull { it.id == playerId }?.name ?: "Player"
@@ -90,7 +93,7 @@ internal fun SnakesBoard(state: SnlState, vm: GameplayViewModel) {
         rolling = true
         Sfx.play(Sfx.DICE)
         scope.launch {
-            delay(650)
+            delay(DICE_ROLL_MS + 250L)
             rolling = false
             vm.submit(RollDice, current.id)
         }
@@ -109,27 +112,41 @@ internal fun SnakesBoard(state: SnlState, vm: GameplayViewModel) {
                 banner = "$who rolled ${m.roll} - needs exactly ${100 - m.from} to finish!"
                 delay(900)
             } else {
+                // Smooth hops: glide from square to square instead of jumping.
+                var prev = squareCenter(m.from)
                 for (s in (m.from + 1)..m.landed) {
-                    moverCenter = squareCenter(s)
-                    lift = 1f
-                    Sfx.play(Sfx.STEP, rate = 1f + (s - m.from) * 0.05f, volume = 0.8f)
-                    delay(105); lift = 0f; delay(95)
+                    val next = squareCenter(s)
+                    Sfx.play(Sfx.STEP, rate = 1f + (s - m.from) * 0.04f, volume = 0.8f)
+                    for (i in 1..12) {
+                        val t = i / 12f
+                        val eased = t * t * (3f - 2f * t)
+                        moverCenter = lerpOffset(prev, next, eased)
+                        lift = sin(t * 3.1416f)
+                        delay(26)
+                    }
+                    prev = next
+                    delay(50)
                 }
+                lift = 0f
                 when (m.event) {
                     "snake" -> {
                         flashSquare = m.landed
-                        banner = "🐍 CHOMP! Snake on ${m.landed} bit $who - slide down to ${m.to}!"
+                        swallowColor = snakeColors[SNAKES.keys.indexOf(m.landed).coerceAtLeast(0) % snakeColors.size]
+                        banner = "🐍 GULP! The snake on ${m.landed} swallowed $who!"
                         bannerColor = Color(0xFFE5484D)
                         Sfx.play(Sfx.SNAKE)
-                        delay(450)
-                        val a = squareCenter(m.landed); val b = squareCenter(m.to)
-                        for (i in 1..24) {
-                            val t = i / 24f
-                            // wiggle on the way down, like sliding along the snake
-                            moverCenter = Offset(a.x + (b.x - a.x) * t + sin(t * 12f) * 0.18f, a.y + (b.y - a.y) * t)
-                            delay(32)
+                        delay(700)
+                        // travel inside the snake, from its mouth all the way to the tail
+                        swallowed = true
+                        val head = squareCenter(m.landed); val tail = squareCenter(m.to)
+                        for (i in 1..50) {
+                            moverCenter = snakePoint(head, tail, i / 50f)
+                            delay(34)
                         }
-                        delay(500)
+                        swallowed = false
+                        Sfx.play(Sfx.POP)
+                        banner = "💨 ...and out of the tail on ${m.to}! $who slid down ${m.landed - m.to} squares."
+                        delay(1100)
                     }
                     "ladder" -> {
                         flashSquare = m.landed
@@ -164,7 +181,7 @@ internal fun SnakesBoard(state: SnlState, vm: GameplayViewModel) {
     // Robot player waits for the animation to finish.
     LaunchedEffect(state.rollCount, state.turnIndex, animating, rolling) {
         if (current.id == BOT_ID && !animating && !rolling && !over) {
-            delay(800)
+            delay(1100)
             roll()
         }
     }
@@ -183,6 +200,28 @@ internal fun SnakesBoard(state: SnlState, vm: GameplayViewModel) {
                 textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
             )
         }
+
+        val farSide = sitsOpposite(state.turnIndex, state.players.size) && current.id != BOT_ID
+        val dockColor = PlayerColors[state.turnIndex % 4]
+        val dock: @Composable RowScope.() -> Unit = {
+            Dice3D(value = state.lastMove?.roll, rolling = rolling, size = 60.dp)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Button(
+                    onClick = { roll() },
+                    enabled = !rolling && !animating && !over && current.id != BOT_ID,
+                    colors = ButtonDefaults.buttonColors(containerColor = dockColor),
+                    modifier = Modifier.height(46.dp),
+                ) {
+                    Text("🎲 ${current.name}: ROLL", fontSize = 15.sp, fontWeight = FontWeight.Black, color = Color(0xFF1B1730), maxLines = 1)
+                }
+                Text(
+                    if (current.id == BOT_ID) "Robot's turn..." else "Your turn - throw the dice!",
+                    fontSize = 11.sp, color = Color.White, maxLines = 1,
+                )
+            }
+        }
+        TurnDock(active = farSide, flipped = true, color = dockColor, idleText = "", content = dock)
 
         Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
             Canvas(Modifier.fillMaxSize()) {
@@ -280,9 +319,14 @@ internal fun SnakesBoard(state: SnlState, vm: GameplayViewModel) {
                     if (!moving) {
                         val n = stacks[square] ?: 0
                         stacks[square] = n + 1
-                        center = Offset(center.x + (n - 0.5f) * cell * 0.24f * (if (n > 0 || state.players.size > 1) 1f else 0f) * (if (n == 0) 0f else 1f), center.y - n * cell * 0.1f)
+                        center = Offset(center.x + n * cell * 0.22f, center.y - n * cell * 0.1f)
                     }
-                    drawPawn(
+                    if (moving && swallowed) {
+                        // a bulge travelling down the snake's body
+                        drawCircle(ink, radius = cell * 0.36f, center = center)
+                        drawCircle(swallowColor, radius = cell * 0.31f, center = center)
+                        drawCircle(Color.White.copy(alpha = 0.35f), radius = cell * 0.1f, center = Offset(center.x - cell * 0.1f, center.y - cell * 0.1f))
+                    } else drawPawn(
                         center = center, radius = cell * 0.27f, color = PlayerColors[i % 4],
                         highlight = p.id == current.id && !animating && !over,
                         lift = if (moving) lift else 0f,
@@ -318,31 +362,17 @@ internal fun SnakesBoard(state: SnlState, vm: GameplayViewModel) {
             }
         }
 
-        Row(
-            Modifier.fillMaxWidth().padding(top = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Dice3D(value = state.lastMove?.roll, rolling = rolling)
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Button(
-                    onClick = { roll() },
-                    enabled = !rolling && !animating && !over && current.id != BOT_ID,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PlayerColors[state.turnIndex % 4],
-                    ),
-                    modifier = Modifier.height(52.dp),
-                ) {
-                    Text("🎲 ROLL", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF1B1730))
-                }
-                Text(
-                    if (current.id == BOT_ID) "Robot's turn..." else "${current.name}, it's your turn!",
-                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
+        TurnDock(active = !farSide, flipped = false, color = dockColor,
+            idleText = "${current.name}'s turn (other side)", content = dock)
         Spacer(Modifier.height(12.dp))
     }
+}
+
+/** A point along a snake's wavy body (cell units), t = 0 at the head, 1 at the tail. */
+private fun snakePoint(head: Offset, tail: Offset, t: Float): Offset {
+    val dx = tail.x - head.x; val dy = tail.y - head.y
+    val len = sqrt(dx * dx + dy * dy).coerceAtLeast(0.001f)
+    val nx = -dy / len; val ny = dx / len
+    val wave = sin(t * 3.1416f * 4f) * 0.22f * (1f - t * 0.5f)
+    return Offset(head.x + dx * t + nx * wave, head.y + dy * t + ny * wave)
 }

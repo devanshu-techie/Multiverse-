@@ -55,13 +55,6 @@ import com.devanshu.miniverse.games.scramble.ScrambleAction
 import com.devanshu.miniverse.games.scramble.ScrambleState
 import com.devanshu.miniverse.games.simon.SimonAction
 import com.devanshu.miniverse.games.simon.SimonState
-import com.devanshu.miniverse.games.football.FootballState
-import com.devanshu.miniverse.games.football.SHOTS_EACH
-import com.devanshu.miniverse.games.football.Shoot
-import com.devanshu.miniverse.games.tank.Fire
-import com.devanshu.miniverse.games.tank.HITS_TO_WIN
-import com.devanshu.miniverse.games.tank.TankGame
-import com.devanshu.miniverse.games.tank.TankState
 import com.devanshu.miniverse.ui.theme.MvCoral
 import com.devanshu.miniverse.ui.theme.MvDark
 import com.devanshu.miniverse.ui.theme.MvLemon
@@ -74,58 +67,6 @@ import com.devanshu.miniverse.ui.theme.MvYellow
 import com.devanshu.miniverse.ui.theme.SeatColors
 import kotlinx.coroutines.delay
 import kotlin.math.abs
-
-// ---------- Tank Battle (artillery) ----------
-
-@Composable
-internal fun TankBoard(state: TankState, vm: GameplayViewModel) {
-    val current = state.players[state.turnIndex]
-    var angle by remember { mutableFloatStateOf(45f) }
-    var power by remember { mutableFloatStateOf(25f) }
-
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("${current.name} aims  ·  first to $HITS_TO_WIN hits", fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(vertical = 6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            state.players.forEachIndexed { i, p ->
-                Text("${p.name}: ${state.hits[p.id]} 💥", color = SeatColors[i], fontWeight = FontWeight.Bold)
-            }
-        }
-        Text(
-            "Distance ${state.distance.toInt()} m   ·   Wind " +
-                (if (state.wind > 0) "→ " else if (state.wind < 0) "← " else "") + abs(state.wind),
-            fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        state.lastLanding?.let {
-            Text(
-                if (state.lastHit == true) "💥 DIRECT HIT!"
-                else "Landed at ${it.toInt()} m (" + (if (it < state.distance) "short" else "long") + ")",
-                fontWeight = FontWeight.Black,
-                color = if (state.lastHit == true) MvCoral else MvSky,
-            )
-        }
-        // Simple field drawing
-        Box(
-            Modifier.fillMaxWidth().height(120.dp).padding(vertical = 8.dp)
-                .clip(RoundedCornerShape(14.dp)).background(MvSky.copy(alpha = 0.2f)),
-        ) {
-            Text("🚜", fontSize = 28.sp, modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp))
-            Text("🚜", fontSize = 28.sp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 10.dp))
-            Text("⛰️", fontSize = 34.sp, modifier = Modifier.align(Alignment.BottomCenter))
-        }
-        Text("Angle: ${angle.toInt()}°", fontWeight = FontWeight.Bold)
-        Slider(value = angle, onValueChange = { angle = it }, valueRange = 10f..80f,
-            modifier = Modifier.fillMaxWidth(0.9f))
-        Text("Power: ${power.toInt()}", fontWeight = FontWeight.Bold)
-        Slider(value = power, onValueChange = { power = it }, valueRange = 10f..40f,
-            modifier = Modifier.fillMaxWidth(0.9f))
-        Spacer(Modifier.height(6.dp))
-        Button(
-            onClick = { vm.submit(Fire(angle, power), current.id) },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text("🔥 FIRE!", fontWeight = FontWeight.Black, fontSize = 17.sp) }
-    }
-}
 
 // ---------- Number Merge (2048) ----------
 
@@ -353,56 +294,3 @@ private fun DirBtn(label: String, onClick: () -> Unit) {
     ) { Box(contentAlignment = Alignment.Center) { Text(label, fontSize = 22.sp) } }
 }
 
-// ---------- Finger Football (penalty flick) ----------
-
-@Composable
-internal fun FootballBoard(state: FootballState, vm: GameplayViewModel) {
-    val shooter = state.players[state.shotIndex % 2]
-    val shotNo = state.shotIndex / 2 + 1
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("${shooter.name} shoots  ·  shot $shotNo of $SHOTS_EACH",
-            fontWeight = FontWeight.Black, modifier = Modifier.padding(vertical = 6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            state.players.forEachIndexed { i, p ->
-                Text("${p.name}: ${state.scores[p.id]} ⚽", color = SeatColors[i], fontWeight = FontWeight.Bold)
-            }
-        }
-        state.lastShot?.let { (shot, keeper) ->
-            Text(
-                if (shot != keeper) "GOOOAL! 🥅" else "Saved by the keeper! 🧤",
-                fontWeight = FontWeight.Black, fontSize = 17.sp,
-                color = if (shot != keeper) MvMint else MvCoral,
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-        Text("Pick your corner - the keeper guesses too!", fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(8.dp))
-        // Goal: 2 rows x 3 zones
-        Column(
-            Modifier.fillMaxWidth().aspectRatio(1.5f).padding(10.dp)
-                .clip(RoundedCornerShape(14.dp)).background(MvMint.copy(alpha = 0.25f)),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            for (row in 0..1) {
-                Row(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (col in 0..2) {
-                        val zone = row * 3 + col
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color.White.copy(alpha = 0.75f),
-                            modifier = Modifier.weight(1f).fillMaxSize()
-                                .clickable { vm.submit(Shoot(zone), shooter.id) },
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(if (row == 0) "🥅" else "⚽", fontSize = 24.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Text("Top row = high shots, bottom row = low shots", fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}

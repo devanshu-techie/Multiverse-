@@ -1,6 +1,25 @@
 package com.devanshu.miniverse.feature.gameplay
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
@@ -26,6 +45,12 @@ import com.devanshu.miniverse.games.connectfour.C4Action
 import com.devanshu.miniverse.games.connectfour.C4State
 import com.devanshu.miniverse.games.connectfour.COLS
 import com.devanshu.miniverse.games.connectfour.ConnectFourGame
+import com.devanshu.miniverse.games.football.Dive
+import com.devanshu.miniverse.games.football.FootballGame
+import com.devanshu.miniverse.games.football.FootballState
+import com.devanshu.miniverse.games.football.KickPhase
+import com.devanshu.miniverse.games.football.SHOTS_EACH
+import com.devanshu.miniverse.games.football.Shoot
 import com.devanshu.miniverse.games.ludo.LUDO_HOME
 import com.devanshu.miniverse.games.ludo.LUDO_SAFE_CELLS
 import com.devanshu.miniverse.games.ludo.LudoGame
@@ -57,23 +82,46 @@ private val pipLayouts: Map<Int, List<Pair<Float, Float>>> = mapOf(
     6 to listOf(0.28f to 0.24f, 0.72f to 0.24f, 0.28f to 0.5f, 0.72f to 0.5f, 0.28f to 0.76f, 0.72f to 0.76f),
 )
 
-/** A chunky dice that tumbles while [rolling] and then shows [value]. */
+/** How long one dice throw lasts. Boards wait this long before showing the result. */
+const val DICE_ROLL_MS = 1150
+
+/**
+ * A chunky dice that is THROWN: it flies up, tumbles in 3D, lands with a
+ * bounce and then shows [value].
+ */
 @Composable
 fun Dice3D(value: Int?, rolling: Boolean, size: Dp = 68.dp, tint: Color = Color.White) {
     var face by remember { mutableIntStateOf(value ?: 1) }
-    LaunchedEffect(rolling, value) {
+    val air = remember { Animatable(0f) }       // 0 = on the table, 1 = top of the throw
+    val spin = remember { Animatable(0f) }
+
+    LaunchedEffect(rolling) {
         if (rolling) {
-            while (true) { face = Random.nextInt(1, 7); delay(70) }
-        } else if (value != null) face = value
+            launch {
+                air.snapTo(0f)
+                air.animateTo(1f, tween(DICE_ROLL_MS * 45 / 100, easing = FastOutSlowInEasing))
+                air.animateTo(0f, spring(dampingRatio = 0.42f, stiffness = Spring.StiffnessLow))
+            }
+            launch {
+                spin.snapTo(0f)
+                spin.animateTo(720f, tween(DICE_ROLL_MS, easing = LinearOutSlowInEasing))
+            }
+            while (true) { face = Random.nextInt(1, 7); delay(130) }
+        } else {
+            spin.snapTo(0f)
+            air.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium))
+        }
     }
-    val spin by animateFloatAsState(if (rolling) 540f else 0f, tween(if (rolling) 560 else 0), label = "diceSpin")
-    val tilt by animateFloatAsState(if (rolling) 35f else 0f, tween(200), label = "diceTilt")
+    LaunchedEffect(rolling, value) { if (!rolling && value != null) face = value }
 
     Canvas(
         Modifier.size(size).graphicsLayer {
-            rotationZ = spin
-            rotationX = tilt
-            rotationY = tilt
+            translationY = -air.value * this.size.height * 0.95f
+            val grow = 1f + air.value * 0.35f
+            scaleX = grow; scaleY = grow
+            rotationZ = spin.value
+            rotationX = air.value * 55f
+            rotationY = air.value * 40f
             cameraDistance = 10f * density
         },
     ) {
@@ -91,6 +139,48 @@ fun Dice3D(value: Int?, rolling: Boolean, size: Dp = 68.dp, tint: Color = Color.
         }
     }
 }
+
+/**
+ * The control strip for whoever's turn it is. Pass-and-play friends sit
+ * facing each other, so the strip appears on the active player's side of the
+ * board and is turned to face them ([flipped] = the far side).
+ */
+@Composable
+fun TurnDock(
+    active: Boolean,
+    flipped: Boolean,
+    color: Color,
+    idleText: String,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Box(
+        Modifier.fillMaxWidth().height(92.dp).padding(vertical = 4.dp)
+            .graphicsLayer { rotationZ = if (flipped) 180f else 0f },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (active) {
+            Surface(
+                shape = RoundedCornerShape(20.dp), color = color.copy(alpha = 0.25f),
+                modifier = Modifier.fillMaxSize().border(2.dp, color, RoundedCornerShape(20.dp)),
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    content = content,
+                )
+            }
+        } else {
+            Text(idleText, fontSize = 12.sp, color = Color(0x88FFFFFF))
+        }
+    }
+}
+
+/** True when this seat sits on the far side of the phone (controls face the other way). */
+fun sitsOpposite(seatIndex: Int, playerCount: Int): Boolean =
+    if (playerCount <= 2) seatIndex == 1 else seatIndex == 1 || seatIndex == 2
+
+fun lerpOffset(a: Offset, b: Offset, t: Float): Offset = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
 
 // ====================== 3D-look pawn ======================
 
@@ -131,6 +221,12 @@ object Bots {
             if (state.mode == RpsMode.PICK && state.picks.size < 2 &&
                 state.players[state.pickerIndex].id == BOT_ID
             ) RpsAction.Pick(Hand.entries[Random.nextInt(3)]) else null
+        is FootballState -> when {
+            state.kickIndex >= SHOTS_EACH * 2 -> null
+            state.phase == KickPhase.SHOOT && FootballGame.shooter(state).id == BOT_ID -> Shoot(Random.nextInt(6))
+            state.phase == KickPhase.DIVE && FootballGame.keeper(state).id == BOT_ID -> Dive(Random.nextInt(6))
+            else -> null
+        }
         else -> null
     }
 

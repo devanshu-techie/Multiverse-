@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.devanshu.miniverse.audio.Sfx
 import com.devanshu.miniverse.engine.GamePlayer
 import com.devanshu.miniverse.games.airhockey.GOALS_TO_WIN
 import com.devanshu.miniverse.games.airhockey.GoalScored
@@ -76,7 +77,7 @@ internal fun AirHockeyBoard(state: HockeyState, vm: GameplayViewModel) {
     fun reset(towardTop: Boolean) {
         val w = size.width.toFloat(); val h = size.height.toFloat()
         puck = Offset(w / 2, h / 2)
-        vel = Offset(0f, if (towardTop) -5f else 5f)
+        vel = Offset(0f, if (towardTop) -11f else 11f)
         pad0 = Offset(w / 2, h * 0.85f)
         pad1 = Offset(w / 2, h * 0.15f)
     }
@@ -102,16 +103,16 @@ internal fun AirHockeyBoard(state: HockeyState, vm: GameplayViewModel) {
                         if (last != 0L) {
                             val w = size.width.toFloat(); val h = size.height.toFloat()
                             var p = puck + vel
-                            var v = vel * 0.998f
-                            if (p.x < r) { p = p.copy(x = r); v = v.copy(x = -v.x) }
-                            if (p.x > w - r) { p = p.copy(x = w - r); v = v.copy(x = -v.x) }
+                            var v = vel * 0.9993f
+                            if (p.x < r) { p = p.copy(x = r); v = v.copy(x = -v.x); Sfx.play(Sfx.TAP, volume = 0.5f) }
+                            if (p.x > w - r) { p = p.copy(x = w - r); v = v.copy(x = -v.x); Sfx.play(Sfx.TAP, volume = 0.5f) }
                             val inGoalX = abs(p.x - w / 2) < goalHalf
                             if (p.y < r) {
-                                if (inGoalX) { vm.submit(GoalScored(p0.id), p0.id); reset(false) }
+                                if (inGoalX) { Sfx.play(Sfx.HORN); vm.submit(GoalScored(p0.id), p0.id); reset(false) }
                                 else { p = p.copy(y = r); v = v.copy(y = -v.y) }
                             }
                             if (p.y > h - r) {
-                                if (inGoalX) { vm.submit(GoalScored(p1.id), p1.id); reset(true) }
+                                if (inGoalX) { Sfx.play(Sfx.HORN); vm.submit(GoalScored(p1.id), p1.id); reset(true) }
                                 else { p = p.copy(y = h - r); v = v.copy(y = -v.y) }
                             }
                             // paddle collisions
@@ -121,8 +122,9 @@ internal fun AirHockeyBoard(state: HockeyState, vm: GameplayViewModel) {
                                 if (dist < r + pr && dist > 1f) {
                                     val n = Offset(d.x / dist, d.y / dist)
                                     p = pad + Offset(n.x * (r + pr), n.y * (r + pr))
-                                    val speed = maxOf(sqrt(v.x * v.x + v.y * v.y), 7f) * 1.05f
+                                    val speed = (maxOf(sqrt(v.x * v.x + v.y * v.y), 15f) * 1.05f).coerceAtMost(34f)
                                     v = Offset(n.x * speed, n.y * speed)
+                                    Sfx.play(Sfx.HIT)
                                 }
                             }
                             if (p != puck || v != vel) { puck = p; vel = v }
@@ -139,9 +141,15 @@ internal fun AirHockeyBoard(state: HockeyState, vm: GameplayViewModel) {
                     Offset(this.size.width / 2 + goalHalf, 6f), strokeWidth = 12f)
                 drawLine(MvYellow, Offset(this.size.width / 2 - goalHalf, this.size.height - 6f),
                     Offset(this.size.width / 2 + goalHalf, this.size.height - 6f), strokeWidth = 12f)
+                // glowing puck and paddles
+                drawCircle(Color.White.copy(alpha = 0.18f), radius = r * 1.9f, center = puck)
                 drawCircle(Color.White, radius = r, center = puck)
-                drawCircle(SeatColors[1], radius = pr, center = pad1)
-                drawCircle(SeatColors[0], radius = pr, center = pad0)
+                listOf(pad1 to PlayerColors[3], pad0 to PlayerColors[0]).forEach { (pad, col) ->
+                    drawCircle(col.copy(alpha = 0.25f), radius = pr * 1.45f, center = pad)
+                    drawCircle(col, radius = pr, center = pad)
+                    drawCircle(Color.White.copy(alpha = 0.55f), radius = pr * 0.45f, center = pad)
+                    drawCircle(col, radius = pr * 0.3f, center = pad)
+                }
             }
             // top half drag (player 2)
             Box(
@@ -279,6 +287,7 @@ internal fun ScoreRunHost(state: ScoreState, vm: GameplayViewModel) {
             Box(Modifier.weight(1f)) {
                 when (state.gameId) {
                     "arballoon" -> ArBalloonSim(onEnd = end)
+                    "scramble" -> ScrambleSim(onEnd = end)
                     "tilt" -> TiltSim(onEnd = end)
                     "pinball" -> PinballSim(runner, onEnd = end)
                     "runner" -> RunnerSim(runner, onEnd = end)
@@ -482,6 +491,7 @@ private fun BalloonSim(runner: GamePlayer, onEnd: (Int) -> Unit) {
                     }
                     .clickable {
                         balloons = balloons.filter { it.id != b.id }
+                        Sfx.play(if (b.bomb) Sfx.BLAST else Sfx.POP)
                         score += if (b.bomb) -2 else 1
                     },
             )

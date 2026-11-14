@@ -23,6 +23,21 @@ object Sfx {
     const val DROP = "drop"
     const val CAPTURE = "capture"
     const val POP = "pop"
+    const val ROCK = "rock"
+    const val PAPER = "paper"
+    const val SCISSORS = "scissors"
+    const val BLAST = "blast"
+    const val SPARKLE = "sparkle"
+    const val KICK = "kick"
+    const val WHISTLE = "whistle"
+    const val CANNON = "cannon"
+    const val DRUMROLL = "drumroll"
+    const val CHAMPION = "champion"
+    const val TICK = "tick"
+    const val CORRECT = "correct"
+    const val WRONG = "wrong"
+    const val HIT = "hit"
+    const val HORN = "horn"
 
     @Volatile var enabled: Boolean = true
     private var pool: SoundPool? = null
@@ -34,11 +49,16 @@ object Sfx {
             .setUsage(AudioAttributes.USAGE_GAME)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        val p = SoundPool.Builder().setMaxStreams(6).setAudioAttributes(attrs).build()
+        val p = SoundPool.Builder().setMaxStreams(8).setAudioAttributes(attrs).build()
         val clips = mapOf(
             DICE to R.raw.dice, STEP to R.raw.step, SNAKE to R.raw.snake, LADDER to R.raw.ladder,
             WIN to R.raw.win, LOSE to R.raw.lose, TAP to R.raw.tap, COIN to R.raw.coin,
             DROP to R.raw.drop, CAPTURE to R.raw.capture, POP to R.raw.pop,
+            ROCK to R.raw.rock, PAPER to R.raw.paper, SCISSORS to R.raw.scissors,
+            BLAST to R.raw.blast, SPARKLE to R.raw.sparkle, KICK to R.raw.kick,
+            WHISTLE to R.raw.whistle, CANNON to R.raw.cannon, DRUMROLL to R.raw.drumroll,
+            CHAMPION to R.raw.champion, TICK to R.raw.tick, CORRECT to R.raw.correct,
+            WRONG to R.raw.wrong, HIT to R.raw.hit, HORN to R.raw.horn,
         )
         clips.forEach { (name, res) -> ids[name] = p.load(context, res, 1) }
         pool = p

@@ -79,6 +79,11 @@ val TiltGame = ScoreChallengeGame(
         "Tilt your phone to roll the ball and grab the stars!"),
     soloTarget = 12,
 )
+val ScrambleRunGame = ScoreChallengeGame(
+    GameDefinition("scramble", "Word Scramble", "🔤", "Puzzle", 1, 2,
+        "5 levels, 15 seconds a word, 3 hearts. How many can you solve?"),
+    soloTarget = 5,
+)
 val BalloonGame = ScoreChallengeGame(
     GameDefinition("balloon", "Balloon Pop", "🎈", "Arcade", 1, 2,
         "Pop balloons before they float away. 30 seconds!"),

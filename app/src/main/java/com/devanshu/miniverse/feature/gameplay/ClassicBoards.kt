@@ -72,7 +72,7 @@ private val Ink = Color(0xFF1B1730)
 
 /** Two player cards side by side; the one whose turn it is lights up. */
 @Composable
-private fun DuelHeader(players: List<GamePlayer>, turnIndex: Int, colors: List<Color>, badges: List<String>, scores: List<String>) {
+internal fun DuelHeader(players: List<GamePlayer>, turnIndex: Int, colors: List<Color>, badges: List<String>, scores: List<String>) {
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         players.forEachIndexed { i, p ->
             val active = i == turnIndex
@@ -339,6 +339,11 @@ internal fun RockPaperScissorsBoard(state: RpsState, vm: GameplayViewModel) {
             // ---- round result ----
             state.picks.size == 2 && state.revealed != null -> {
                 val (h0, h1) = state.revealed
+                // play the sound of the winning hand when the round is shown
+                LaunchedEffect(state.round) {
+                    val shown = if (state.lastResult?.startsWith(p1.name) == true) h1 else h0
+                    Sfx.play(when (shown) { Hand.ROCK -> Sfx.ROCK; Hand.PAPER -> Sfx.PAPER; Hand.SCISSORS -> Sfx.SCISSORS })
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                     RevealHand(handEmoji.getValue(h0), p0.name, colors[0])
                     Text("VS", fontWeight = FontWeight.Black, fontSize = 22.sp, color = Color(0xFFFFC93C))
@@ -368,12 +373,14 @@ internal fun RockPaperScissorsBoard(state: RpsState, vm: GameplayViewModel) {
                     enabled = !shaking,
                     onClick = {
                         shaking = true
-                        Sfx.play(Sfx.DICE)
                         scope.launch {
-                            repeat(12) { shakeFace++; delay(80) }
+                            // "rock... paper... scissors..." - each word has its own sound
+                            listOf(Sfx.ROCK, Sfx.PAPER, Sfx.SCISSORS).forEach { beat ->
+                                Sfx.play(beat)
+                                repeat(4) { shakeFace++; delay(110) }
+                            }
                             shaking = false
                             vm.submit(RpsAction.Shake, p0.id)
-                            Sfx.play(Sfx.POP)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(0.75f).height(60.dp),
@@ -398,7 +405,8 @@ internal fun RockPaperScissorsBoard(state: RpsState, vm: GameplayViewModel) {
                             Surface(
                                 shape = CircleShape, color = colors[state.pickerIndex],
                                 modifier = Modifier.size(92.dp).clickable {
-                                    Sfx.play(Sfx.TAP); vm.submit(RpsAction.Pick(hand), picker.id)
+                                    Sfx.play(Sfx.TAP)      // same sound for every hand, so the pick stays secret
+                                    vm.submit(RpsAction.Pick(hand), picker.id)
                                 },
                             ) {
                                 Box(contentAlignment = Alignment.Center) { Text(handEmoji.getValue(hand), fontSize = 44.sp) }

@@ -25,11 +25,14 @@ data class TankState(
     val hits: Map<String, Int>,
     val lastLanding: Float?,         // landing x relative to shooter
     val lastHit: Boolean?,
+    val bigLeft: Map<String, Int> = emptyMap(),      // Mega Bombs left per player
 )
 
-data class Fire(val angleDeg: Float, val power: Float)  // angle 10..80, power 10..40
+data class Fire(val angleDeg: Float, val power: Float, val big: Boolean = false)  // angle 10..80, power 10..40
 
 const val HIT_RADIUS = 3.5f
+const val BIG_RADIUS = 7.5f
+const val BIG_BOMBS = 2
 const val GRAVITY = 9.8f
 const val HITS_TO_WIN = 3
 
@@ -49,6 +52,7 @@ object TankGame : MiniGame<TankState, Fire> {
             turnIndex = 0, round = 0,
             hits = players.associate { it.id to 0 },
             lastLanding = null, lastHit = null,
+            bigLeft = players.associate { it.id to BIG_BOMBS },
         )
     }
 
@@ -66,12 +70,13 @@ object TankGame : MiniGame<TankState, Fire> {
         state.players[state.turnIndex].id != playerId -> ActionValidation.Invalid("Not your turn")
         action.angleDeg !in 10f..80f -> ActionValidation.Invalid("Angle 10-80")
         action.power !in 10f..40f -> ActionValidation.Invalid("Power 10-40")
+        action.big && (state.bigLeft[playerId] ?: 0) <= 0 -> ActionValidation.Invalid("No Mega Bombs left")
         else -> ActionValidation.Valid
     }
 
     override fun reduce(state: TankState, action: Fire, playerId: String): TankState {
         val land = landingX(action.angleDeg, action.power, state.wind)
-        val hit = kotlin.math.abs(land - state.distance) <= HIT_RADIUS
+        val hit = kotlin.math.abs(land - state.distance) <= (if (action.big) BIG_RADIUS else HIT_RADIUS)
         val rng = Random(state.seed + state.round + 100)
         return state.copy(
             turnIndex = (state.turnIndex + 1) % state.players.size,
@@ -79,6 +84,7 @@ object TankGame : MiniGame<TankState, Fire> {
             hits = if (hit) state.hits + (playerId to (state.hits[playerId] ?: 0) + 1) else state.hits,
             lastLanding = land,
             lastHit = hit,
+            bigLeft = if (action.big) state.bigLeft + (playerId to ((state.bigLeft[playerId] ?: 0) - 1)) else state.bigLeft,
             wind = (rng.nextInt(9) - 4) * 0.5f,   // new wind each shot, seeded
         )
     }

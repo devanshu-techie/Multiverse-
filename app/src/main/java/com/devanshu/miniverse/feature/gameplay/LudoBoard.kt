@@ -1,5 +1,7 @@
 package com.devanshu.miniverse.feature.gameplay
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -80,7 +83,7 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
     var rolling by remember { mutableStateOf(false) }
     var animating by remember { mutableStateOf(false) }
     var animToken by remember { mutableStateOf<Triple<String, Int, Int>?>(null) }  // player, token, shown step
-    var lift by remember { mutableFloatStateOf(0f) }
+    val hop = remember { Animatable(1f) }          // 0..1 progress of the current hop
 
     val pulse by rememberInfiniteTransition(label = "ludoPulse").animateFloat(
         initialValue = 0.85f, targetValue = 1.2f,
@@ -96,7 +99,7 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
         rolling = true
         Sfx.play(Sfx.DICE)
         scope.launch {
-            delay(650)
+            delay(DICE_ROLL_MS + 250L)
             rolling = false
             vm.submit(LudoAction.Roll, current.id)
         }
@@ -107,19 +110,17 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
         val m = state.lastMove
         if (m != null && state.moveCount > 0) {
             animating = true
-            if (m.from == -1) {
-                animToken = Triple(m.playerId, m.token, 0)
-                lift = 1f; Sfx.play(Sfx.STEP); delay(140); lift = 0f; delay(120)
-            } else {
-                for (s in (m.from + 1)..m.to) {
-                    animToken = Triple(m.playerId, m.token, s)
-                    lift = 1f
-                    Sfx.play(Sfx.STEP, rate = 1f + (s - m.from) * 0.04f, volume = 0.8f)
-                    delay(95); lift = 0f; delay(85)
-                }
+            // Each square is one smooth hop: glide from the previous square to the next.
+            val first = if (m.from == -1) 0 else m.from + 1
+            for (s in first..m.to) {
+                animToken = Triple(m.playerId, m.token, s)
+                hop.snapTo(0f)
+                Sfx.play(Sfx.STEP, rate = 1f + (s - first) * 0.03f, volume = 0.8f)
+                hop.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
+                delay(40)
             }
-            if (m.captured > 0) { Sfx.play(Sfx.CAPTURE); delay(380) }
-            if (m.to == LUDO_HOME) { Sfx.play(Sfx.COIN); delay(300) }
+            if (m.captured > 0) { Sfx.play(Sfx.CAPTURE); delay(500) }
+            if (m.to == LUDO_HOME) { Sfx.play(Sfx.COIN); delay(400) }
             animToken = null
             animating = false
         }
@@ -128,7 +129,7 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
     // One movable token only? Move it automatically so little kids are not stuck.
     LaunchedEffect(state.rollCount, state.pendingRoll, animating) {
         if (!animating && state.pendingRoll != null && current.id != BOT_ID && movable.size == 1) {
-            delay(500)
+            delay(700)
             vm.submit(LudoAction.Move(movable.first()), current.id)
         }
     }
@@ -136,7 +137,7 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
     // Robot player.
     LaunchedEffect(state.rollCount, state.moveCount, state.turnIndex, animating, rolling) {
         if (current.id == BOT_ID && !animating && !rolling && !over) {
-            delay(750)
+            delay(1000)
             val pending = state.pendingRoll
             if (pending == null) roll()
             else Bots.ludoToken(state, pending)?.let { vm.submit(LudoAction.Move(it), BOT_ID) }
@@ -147,21 +148,34 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Turn banner
-        Surface(
-            shape = RoundedCornerShape(16.dp), color = colorOf(current.id),
-            modifier = Modifier.padding(vertical = 6.dp),
-        ) {
-            Text(
-                when {
-                    over -> "🏆 Game over!"
-                    state.pendingRoll != null && current.id != BOT_ID -> "${current.name}: tap a glowing token"
-                    else -> "${current.name}'s turn - roll the dice!"
-                },
-                color = Color(0xFF1B1730), fontWeight = FontWeight.Black, fontSize = 15.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-            )
+        val currentIndex = state.turnIndex
+        val farSide = sitsOpposite(currentIndex, state.players.size) && current.id != BOT_ID
+        val dock: @Composable RowScope.() -> Unit = {
+            Dice3D(value = state.lastRoll, rolling = rolling, size = 60.dp)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Button(
+                    onClick = { roll() },
+                    enabled = !rolling && !animating && !over && state.pendingRoll == null && current.id != BOT_ID,
+                    colors = ButtonDefaults.buttonColors(containerColor = colorOf(current.id)),
+                    modifier = Modifier.height(46.dp),
+                ) {
+                    Text("🎲 ${current.name}: ROLL", fontSize = 15.sp, fontWeight = FontWeight.Black, color = Color(0xFF1B1730), maxLines = 1)
+                }
+                Text(
+                    when {
+                        over -> "🏆 Game over!"
+                        current.id == BOT_ID -> "Robot is playing..."
+                        state.pendingRoll != null -> "Tap a glowing token"
+                        else -> state.note ?: "A 6 brings a token out"
+                    },
+                    fontSize = 11.sp, color = Color.White, maxLines = 1,
+                )
+            }
         }
+        // far player's controls (turned to face them)
+        TurnDock(active = farSide, flipped = true, color = colorOf(current.id),
+            idleText = "", content = dock)
 
         // ---------------- The board ----------------
         Box(Modifier.fillMaxWidth().aspectRatio(1f).padding(2.dp)) {
@@ -261,7 +275,11 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
                         val isAnim = anim != null && anim.first == p.id && anim.second == t
                         val step = if (isAnim) anim!!.third else realStep
                         var center = tokenCenter(state, p.id, t, step, cell)
-                        if (step in 0..55) {
+                        if (isAnim) {
+                            val before = tokenCenter(state, p.id, t, step - 1, cell)
+                            center = lerpOffset(before, center, hop.value)
+                        }
+                        if (step in 0..55 && !isAnim) {
                             val key = "${center.x.toInt()}:${center.y.toInt()}"
                             val n = stacks[key] ?: 0
                             stacks[key] = n + 1
@@ -273,7 +291,7 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
                             radius = cell * 0.36f * (if (canMove) pulse else 1f),
                             color = colorOf(p.id),
                             highlight = canMove,
-                            lift = if (isAnim) lift else 0f,
+                            lift = if (isAnim) kotlin.math.sin(hop.value * 3.1416f) else 0f,
                         )
                     }
                 }
@@ -318,30 +336,9 @@ internal fun LudoBoard(state: LudoState, vm: GameplayViewModel) {
             }
         }
 
-        // ---------------- Dice ----------------
-        Row(
-            Modifier.fillMaxWidth().padding(top = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Dice3D(value = state.lastRoll, rolling = rolling)
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Button(
-                    onClick = { roll() },
-                    enabled = !rolling && !animating && !over && state.pendingRoll == null && current.id != BOT_ID,
-                    colors = ButtonDefaults.buttonColors(containerColor = colorOf(current.id)),
-                    modifier = Modifier.height(52.dp),
-                ) {
-                    Text("🎲 ROLL", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF1B1730))
-                }
-                Text(
-                    state.note ?: if (current.id == BOT_ID) "Robot is thinking..." else "Roll a 6 to bring a token out",
-                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
+        // near player's controls
+        TurnDock(active = !farSide, flipped = false, color = colorOf(current.id),
+            idleText = "${current.name}'s turn (other side)", content = dock)
         Spacer(Modifier.height(12.dp))
     }
 }

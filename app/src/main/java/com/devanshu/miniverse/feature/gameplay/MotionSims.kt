@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.devanshu.miniverse.audio.Sfx
 import com.devanshu.miniverse.ui.theme.MvDark
 import com.devanshu.miniverse.ui.theme.MvPink
 import com.devanshu.miniverse.ui.theme.MvSky
@@ -114,6 +115,8 @@ internal fun CameraBackground(modifier: Modifier = Modifier) {
 
 // ====================== AR Balloon Hunt ======================
 
+private class Burst(val x: Float, val y: Float, val kind: Int, val start: Float)
+
 private class ArBalloon(
     val id: Int, val x: Float, var y: Float, val speed: Float,
     val kind: Int,          // 0 balloon, 1 bomb, 2 golden star
@@ -128,6 +131,7 @@ internal fun ArBalloonSim(onEnd: (Int) -> Unit) {
     var nextId by remember { mutableIntStateOf(0) }
     var clock by remember { mutableStateOf(0f) }
     var box by remember { mutableStateOf(IntSize(1, 1)) }
+    var bursts by remember { mutableStateOf(listOf<Burst>()) }
 
     LaunchedEffect(Unit) {
         var last = 0L
@@ -139,6 +143,7 @@ internal fun ArBalloonSim(onEnd: (Int) -> Unit) {
                     val dt = now - last
                     elapsed += dt; spawnAcc += dt
                     clock = elapsed / 1_000_000_000f
+                    if (bursts.isNotEmpty()) bursts = bursts.filter { clock - it.start < 0.6f }
                     timeLeft = (30 - elapsed / 1_000_000_000L).toInt().coerceAtLeast(0)
                     if (spawnAcc > 600_000_000L) {
                         spawnAcc = 0L
@@ -185,9 +190,34 @@ internal fun ArBalloonSim(onEnd: (Int) -> Unit) {
                         indication = null,
                     ) {
                         balloons = balloons.filter { it.id != b.id }
+                        Sfx.play(when (b.kind) { 1 -> Sfx.BLAST; 2 -> Sfx.SPARKLE; else -> Sfx.POP })
+                        bursts = bursts + Burst(
+                            b.x * box.width + 60f, b.y * box.height + 70f, b.kind, clock,
+                        )
                         score += when (b.kind) { 1 -> -2; 2 -> 3; else -> 1 }
                     },
             )
+        }
+        // sparkles for pops, a fiery blast and red flash for bombs
+        Canvas(Modifier.fillMaxSize()) {
+            bursts.forEach { burst ->
+                val age = ((clock - burst.start) / 0.6f).coerceIn(0f, 1f)
+                val c = Offset(burst.x, burst.y)
+                if (burst.kind == 1) {
+                    drawRect(Color(0xFFFF2D2D).copy(alpha = (1f - age) * 0.35f))
+                    drawCircle(Color(0xFFFF5A1F).copy(alpha = 1f - age), radius = 40f + age * 170f, center = c)
+                    drawCircle(Color(0xFFFFE066).copy(alpha = 1f - age), radius = 20f + age * 90f, center = c)
+                } else {
+                    val col = if (burst.kind == 2) Color(0xFFFFE066) else Color.White
+                    for (i in 0 until 10) {
+                        val ang = i * 0.628f
+                        val d = 20f + age * (if (burst.kind == 2) 150f else 95f)
+                        val p = Offset(c.x + kotlin.math.cos(ang) * d, c.y + sin(ang) * d)
+                        drawCircle(col.copy(alpha = 1f - age), radius = (1f - age) * 9f + 2f, center = p)
+                        drawLine(col.copy(alpha = (1f - age) * 0.8f), c, p, strokeWidth = 3f)
+                    }
+                }
+            }
         }
         Text(
             "🎈 +1   🌟 +3   💣 -2", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,

@@ -6,6 +6,7 @@ import com.devanshu.miniverse.games.arcade.BalloonGame
 import com.devanshu.miniverse.games.arcade.TiltGame
 import com.devanshu.miniverse.games.arcade.PinballGame
 import com.devanshu.miniverse.games.arcade.RunnerGame
+import com.devanshu.miniverse.games.arcade.ScrambleRunGame
 import com.devanshu.miniverse.games.connectfour.ConnectFourGame
 import com.devanshu.miniverse.games.dotsboxes.DotsBoxesGame
 import com.devanshu.miniverse.games.football.FootballGame
@@ -16,7 +17,6 @@ import com.devanshu.miniverse.games.merge.MergeGame
 import com.devanshu.miniverse.games.quickmath.QuickMathGame
 import com.devanshu.miniverse.games.reaction.ReactionGame
 import com.devanshu.miniverse.games.rps.RpsGame
-import com.devanshu.miniverse.games.scramble.ScrambleGame
 import com.devanshu.miniverse.games.simon.SimonGame
 import com.devanshu.miniverse.games.snakes.SnakesGame
 import com.devanshu.miniverse.games.sumo.SumoGame
@@ -55,7 +55,7 @@ object GameRegistry {
         MemoryGame,
         QuickMathGame,
         MergeGame,
-        ScrambleGame,
+        ScrambleRunGame,
         SimonGame,
         MazeGame,
     )

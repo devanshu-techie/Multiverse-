@@ -47,11 +47,14 @@ import com.devanshu.miniverse.engine.GamePlayer
 import com.devanshu.miniverse.engine.GameRegistry
 import com.devanshu.miniverse.feature.gameplay.PlayerColorNames
 import com.devanshu.miniverse.feature.gameplay.PlayerColors
+import com.devanshu.miniverse.feature.gameplay.SeriesStore
+import com.devanshu.miniverse.ui.theme.bouncyClick
+import com.devanshu.miniverse.ui.theme.floaty
 import com.devanshu.miniverse.ui.theme.MvYellow
 import kotlinx.coroutines.launch
 
 /** Games that have a built-in robot opponent. */
-private val botGames = setOf("tictactoe", "connectfour", "snakes", "ludo", "rps")
+private val botGames = setOf("tictactoe", "connectfour", "snakes", "ludo", "rps", "football")
 private const val BOT_NAME = "Robo 🤖"
 
 /**
@@ -76,6 +79,7 @@ fun SetupScreen(
     var others by remember { mutableStateOf(listOf<String>()) }      // names in seats 2..n
     var newName by remember { mutableStateOf("") }
     var starting by remember { mutableStateOf(false) }
+    var bestOf by remember { mutableStateOf(1) }
     val scope = rememberCoroutineScope()
 
     val count = 1 + others.size
@@ -94,6 +98,19 @@ fun SetupScreen(
             fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
+
+        // ---- big, obvious choice: friends or the robot ----
+        if (gameId in botGames) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ModeCard("👥", "WITH FRIENDS", "pass the phone", !hasBot, PlayerColors[3], Modifier.weight(1f)) {
+                    Sfx.play(Sfx.TAP); others = others.filter { it != BOT_NAME }
+                }
+                ModeCard("🤖", "WITH ROBO", "play alone", hasBot, PlayerColors[1], Modifier.weight(1f)) {
+                    Sfx.play(Sfx.POP); others = listOf(BOT_NAME)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
 
         // ---- seats ----
         SeatRow(1, owner?.name ?: "You", owner?.avatar ?: "🙂", "that's you!", PlayerColors[0], null)
@@ -120,7 +137,7 @@ fun SetupScreen(
         }
 
         // ---- add a player ----
-        if (canAdd) {
+        if (canAdd && !hasBot) {
             Spacer(Modifier.height(12.dp))
             Text("＋ Add player ${count + 1}", fontWeight = FontWeight.Black, fontSize = 17.sp)
             val available = friends.filter { it !in others }
@@ -161,25 +178,28 @@ fun SetupScreen(
                     modifier = Modifier.padding(start = 8.dp).height(54.dp),
                 ) { Text("Add", fontWeight = FontWeight.Black) }
             }
-            if (gameId in botGames && !hasBot) {
-                Spacer(Modifier.height(8.dp))
+        }
+
+        // ---- rounds ----
+        Spacer(Modifier.height(16.dp))
+        Text("How many rounds?", fontWeight = FontWeight.Black, fontSize = 17.sp)
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(1 to "1 game", 3 to "Best of 3", 5 to "Best of 5").forEach { (n, label) ->
+                val on = bestOf == n
                 Surface(
-                    shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth().clickable { Sfx.play(Sfx.TAP); others = others + BOT_NAME },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (on) MvYellow else MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.weight(1f).clickable { Sfx.play(Sfx.TAP); bestOf = n },
                 ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("🤖", fontSize = 30.sp)
-                        Column(Modifier.padding(start = 12.dp)) {
-                            Text("Play against the robot", fontWeight = FontWeight.Black)
-                            Text("No friend nearby? Robo will play with you.", fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
+                    Text(label, fontWeight = FontWeight.Black, fontSize = 14.sp,
+                        color = if (on) Color(0xFF1B1730) else MaterialTheme.colorScheme.onSurface,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 12.dp))
                 }
             }
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(10.dp))
         Surface(shape = RoundedCornerShape(14.dp), color = MvYellow.copy(alpha = 0.15f)) {
             Text("🪙 Win +20 · Draw +10 · Lose +5 MiniCoins (for your profile)",
                 fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().padding(10.dp))
@@ -201,6 +221,7 @@ fun SetupScreen(
                             )
                         }
                     }
+                    SeriesStore.start(gameId, players, me.playerId, bestOf)
                     val (matchId, _) = repository.createMatch(gameId, players, me.playerId)
                     onMatchCreated(matchId)
                 }
@@ -235,6 +256,28 @@ private fun SeatRow(seat: Int, name: String, avatar: String, note: String, color
                 Text("Player $seat · $note", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (onRemove != null) TextButton(onClick = onRemove) { Text("✕") }
+        }
+    }
+}
+
+@Composable
+private fun ModeCard(
+    emoji: String, title: String, note: String, selected: Boolean, color: Color,
+    modifier: Modifier, onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = if (selected) color else color.copy(alpha = 0.18f),
+        modifier = modifier
+            .border(if (selected) 3.dp else 1.dp, if (selected) Color.White else color, RoundedCornerShape(24.dp))
+            .bouncyClick(onClick = onClick),
+    ) {
+        Column(Modifier.padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(emoji, fontSize = 46.sp, modifier = Modifier.floaty(4.dp, 1900))
+            Text(title, fontWeight = FontWeight.Black, fontSize = 16.sp,
+                color = if (selected) Color(0xFF1B1730) else Color.White)
+            Text(if (selected) "✓ selected" else note, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                color = if (selected) Color(0xFF1B1730) else Color.White.copy(alpha = 0.7f))
         }
     }
 }

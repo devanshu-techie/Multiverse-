@@ -134,6 +134,17 @@ fun GameplayScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { menuOpen = true }) { Text("⏸ Menu", fontWeight = FontWeight.Bold) }
             Spacer(Modifier.weight(1f))
+            val series = SeriesStore.current?.takeIf { it.gameId == s.gameId }
+            if (series != null) {
+                Surface(shape = RoundedCornerShape(12.dp), color = if (series.nextIsFinal) MvCoral else MvYellow) {
+                    Text(
+                        if (series.nextIsFinal) "🔥 FINAL ROUND" else "Round ${series.nextRound}/${series.bestOf}",
+                        fontWeight = FontWeight.Black, fontSize = 12.sp, color = MvDark,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+                Spacer(Modifier.size(8.dp))
+            }
             Text(
                 GameRegistry.find(s.gameId)?.definition?.let { "${it.emoji} ${it.name}" } ?: "",
                 fontWeight = FontWeight.Black, fontSize = 15.sp,

@@ -194,6 +194,8 @@ fun MiniVerseNavHost(repository: GameRepository) {
                     repository = repository,
                     matchId = entry.arguments?.getString("matchId").orEmpty(),
                     onHome = { nav.popBackStack(Routes.HOME, inclusive = false) },
+                    onNextRound = { nextId -> nav.navigate(Routes.play(nextId)) { popUpTo(Routes.HOME) } },
+                    onPlayAgain = { id -> nav.navigate(Routes.setup(id)) { popUpTo(Routes.HOME) } },
                 )
             }
         }
