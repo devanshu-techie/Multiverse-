@@ -147,7 +147,8 @@ object LudoGame : MiniGame<LudoState, LudoAction> {
 
     private fun nextTurn(state: LudoState) = (state.turnIndex + 1) % state.players.size
 
-    override fun reduce(state: LudoState, action: LudoAction, playerId: String): LudoState = when (action) {
+    override fun reduce(state: LudoState, action: LudoAction, playerId: String): LudoState {
+        return when (action) {
         LudoAction.Roll -> {
             val roll = 1 + Random(state.seed + state.rollCount * 7919L).nextInt(6)
             val movable = movableTokens(state, playerId, roll)
@@ -199,6 +200,7 @@ object LudoGame : MiniGame<LudoState, LudoAction> {
                 },
             )
         }
+    }
     }
 
     fun homeCount(state: LudoState, playerId: String): Int =
